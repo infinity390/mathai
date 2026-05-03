@@ -10,7 +10,7 @@ from .univariate_inequality import wavycurvy, prepare, absolute, handle_sqrt, eq
 from .bivariate_inequality import solve_logically
 from .fraction import fraction
 from .expand import expand
-from .logic import logic0, set_sub, truth_gen
+from .logic import logic0, set_sub, truth_gen, distribute
 from .factor import factor2, factor
 from .limit import limit1, limit5
 from .linear import linear_solve
@@ -31,30 +31,45 @@ def simple_wavycurvy(eq):
 def two_eq_handle(eq):
     eq = flatten_tree(eq)
     orig = eq
-    if eq.name == "f_and" and all(item.name == "f_eq" for item in eq.children):
+    if eq.name == "f_and":
         out = vlist(eq)
         eq = simplify(eq)
         if out == []:
             pass
-        elif all(all("v_" not in str_form(diff(item.children[0],v)) for v in out) for item in eq.children):
+        elif all(item.name == "f_eq" for item in eq.children) and all(all("v_" not in str_form(diff(item.children[0],v)) for v in out) for item in eq.children):
             eq = linear_solve(eq)
             return eq
-        elif len(eq.children) == 2 and len(out) == 2:
-            a, b = copy.deepcopy(eq.children)
-            a_expr = a.children[0]
-            b_expr = b.children[0]
-            result = tree_form("s_false")
-            for v1, v2 in [(out[0], out[1]), (out[1], out[0])]:
-                inv = inverse(copy.deepcopy(a_expr), v1)  # x = 8 - y
-                if inv is not None:
-                    substituted = replace(copy.deepcopy(b_expr), tree_form(v1), inv)
-                    pair = (
-                        TreeNode("f_eq", [tree_form(v1), inv]) &
-                        TreeNode("f_eq", [substituted, tree_form("d_0")])
-                    )
-                    result = result | pair
-            print(result)
-            return result
+        elif len(eq.children) >= 2 and len(out) >= 2:
+            for i in range(len(eq.children)):
+                for j in range(len(eq.children)):
+                    if i >= j:
+                        continue
+                    a, b = copy.deepcopy((eq.children[i], eq.children[j]))
+                    if a.name != "f_eq" or b.name != "f_eq":
+                        continue
+                    a_expr = a.children[0]
+                    b_expr = b.children[0]
+                    result = tree_form("s_false")
+                    for v1, v2 in [(out[0], out[1]), (out[1], out[0])]:
+                        inv = inverse(copy.deepcopy(a_expr), v1)
+                        if inv is None:
+                            continue
+                        reduced = replace(copy.deepcopy(b_expr), tree_form(v1), inv)
+                        reduced = simplify(reduced)
+                        pair = (
+                            TreeNode("f_eq", [tree_form(v1), inv]) &
+                            TreeNode("f_eq", [reduced, tree_form("d_0")])
+                        )
+                        if result.name == "s_false":
+                            result = pair
+                        else:
+                            result = result | pair
+                    tmp = TreeNode(eq.name, eq.children[:i]+eq.children[i+1:j]+eq.children[j+1:])
+                    if len(tmp.children) == 1:
+                        tmp = tmp.children[0]
+                    if len(tmp.children) == 0:
+                        return flatten_tree(distribute(result, "or_over_and"))
+                    return flatten_tree(distribute(result, "or_over_and")&tmp)
     return orig
 def god(string):
     print(f"? {string}")
@@ -87,11 +102,17 @@ def god(string):
         if "f_integrate" in str_form(eq):
             eq = integrate_full(eq)
     if any("f_"+item in str_form(eq) for item in "eq lt le ge gt".split(" ")):
-        print(eq)
-        eq = simple_wavycurvy(eq)
-        eq = two_eq_handle(eq)
-        eq = simple_wavycurvy(eq)
-        eq = simple_wavycurvy(eq)
+        def fun(eq):
+            print(eq)
+            eq = simple_wavycurvy(eq)
+            eq = transform_dfs(eq, two_eq_handle)
+            fx = lambda x: logic0(simplify(factor2(dowhile(x, lambda y: simplify(fraction(y)))), True, True))
+            eq = fx(eq)
+            eq = flatten_tree(eq)
+            if "f_or" in str_form(eq):
+                eq = distribute(eq, "and_over_or")
+            return eq
+        eq = dowhile(eq, fun)
         if eq.name in ["f_and", "f_or"]:
             eq = TreeNode(eq.name, list(set(eq.children)))
             if len(eq.children) == 1:

@@ -78,6 +78,7 @@ def truth_gen(eq):
      else:
           outeq = TreeNode("f_or", outeq)
      return outeq
+
 def logic0(eq):
     if eq.children is None or len(eq.children) == 0:
         return eq
@@ -111,7 +112,7 @@ def logic0(eq):
     if eq.name == "f_gt":
         return TreeNode("f_le", list(eq.children)).fx("not")
     if eq.name == "f_or":
-        out = [c for c in eq.children if c != tree_form("s_false")]
+        out = [c for c in list(set(eq.children)) if c != tree_form("s_false")]
         if any(c == tree_form("s_true") for c in out):
             return tree_form("s_true")
         if len(out) == 0:
@@ -120,7 +121,7 @@ def logic0(eq):
             return out[0]
         return TreeNode("f_or", out)
     if eq.name == "f_and":        
-        out = [c for c in eq.children if c != tree_form("s_true")]
+        out = [c for c in list(set(eq.children)) if c != tree_form("s_true")]
         if any(c == tree_form("s_false") for c in out):
             return tree_form("s_false")
         if len(out) == 0:
@@ -260,3 +261,59 @@ def logic4(expr: TreeNode) -> TreeNode:
     tree = bdd_to_tree(bdd)
     tree = dowhile(tree, simplify_tree)
     return tree
+import itertools
+
+def distribute(eq, mode="and_over_or"):
+
+    def flatten(node):
+        if node.name in ["f_and", "f_or"]:
+            new_children = []
+            for c in node.children:
+                if c.name == node.name:
+                    new_children.extend(c.children)
+                else:
+                    new_children.append(c)
+            node.children = new_children
+        return node
+
+    def dist(node):
+        if not node.children:
+            return node
+
+        children = [dist(c) for c in node.children]
+        node = TreeNode(node.name, children)
+        node = flatten(node)
+
+        # ---- AND over OR ----
+        if mode == "and_over_or" and node.name == "f_and":
+            groups = []
+            for c in node.children:
+                if c.name == "f_or":
+                    groups.append(c.children)
+                else:
+                    groups.append([c])
+
+            terms = []
+            for combo in itertools.product(*groups):
+                terms.append(TreeNode("f_and", list(combo)))
+
+            return TreeNode("f_or", terms)
+
+        # ---- OR over AND ----
+        if mode == "or_over_and" and node.name == "f_or":
+            groups = []
+            for c in node.children:
+                if c.name == "f_and":
+                    groups.append(c.children)
+                else:
+                    groups.append([c])
+
+            terms = []
+            for combo in itertools.product(*groups):
+                terms.append(TreeNode("f_or", list(combo)))
+
+            return TreeNode("f_and", terms)
+
+        return node
+
+    return logic0(dist(eq))

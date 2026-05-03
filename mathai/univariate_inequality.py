@@ -236,7 +236,6 @@ def helper(eq, var="v_0"):
     more = []
     _, d = num_dem(eq.children[0])
     d = simplify(d)
-    #d = factor2(d)
     for item in factor_generation(d):
         item = simplify(expand(item))
         if len(vlist(item)) != 0:
@@ -245,7 +244,6 @@ def helper(eq, var="v_0"):
                 continue
             out = inverse(item, vlist(item)[0])
             more.append(simplify(out))
-    #eq.children[0] = factor2(eq.children[0])
     for item in factor_generation(eq.children[0]):
         item = simplify(expand(item))
         if len(vlist(item)) == 0:
@@ -375,16 +373,28 @@ def wavycurvy_helper(eq, var=None):
             eq = eq3.children[0]
             ra = eq2range(eq)
         else:
-            eq = eq3       
-        lst4 = tree_form("s_false")
-        if orig.name == "f_and" and ra is not None and ra.r == [False] and len(ra.z) == 0 and len(ra.p) > 0 and len(lst3) == 1 and ra.variable.name in vlist(lst3[0]):
-            eq2 = lst3[0]
-            for item in ra.p:
-                lst4 = lst4 | (TreeNode("f_eq", [ra.variable - item, tree_form("d_0")]) & replace(eq2, ra.variable, item))
-            print(lst4)
-            fx = lambda x: dowhile(x, lambda y: logic0(simplify(y, True, True)))
-            lst4 = fx(lst4)
-            return lst4
+            eq = eq3
+        for index, ra in enumerate(eq3.children):
+            ra = eq2range(ra)
+            for index2, eq2 in enumerate(lst3):
+                lst4 = tree_form("s_false")
+                if orig.name == "f_and" and ra is not None and ra.r == [False] and len(ra.z) == 0 and len(ra.p) > 0 and\
+                   ra.variable.name in vlist(eq2):
+                    for item in ra.p:
+                        lst4 = lst4 | (TreeNode("f_eq", [ra.variable - item, tree_form("d_0")]) & replace(eq2, ra.variable, item))
+                    fx = lambda x: dowhile(x, lambda y: logic0(simplify(y, True, True)))
+                    lst4 = fx(lst4)
+                    tmp2 = eq3.children[:index]+eq3.children[index+1:]+lst3[:index2]+lst3[index2+1:]
+                    if len(tmp2) == 1:
+                        tmp2 = tmp2[0]
+                        output = flatten_tree(lst4 & tmp2)
+                        return output
+                    elif len(tmp2) > 1:
+                        tmp2 = TreeNode("f_and", tmp2)
+                        output = flatten_tree(lst4 & tmp2)
+                        return output
+                    else:
+                        return lst4
         if orig.name == eq.name:
             lst3 = eq.children+lst3
         else:
