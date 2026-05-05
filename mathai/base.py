@@ -150,6 +150,12 @@ def replace(equation, find, r):
   for child in equation.children:
     col.children.append(replace(child, find, r))
   return col
+def contain2(equation, what):
+    if equation.name == what:
+        return True
+    if equation.children == []:
+        return False
+    return any(contain2(child, what) for child in equation.children)
 def contain(equation, what):
     if equation == what:
         return True

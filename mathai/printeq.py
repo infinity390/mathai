@@ -43,7 +43,7 @@ def printeq_str(eq):
     if eq is None:
         return None
     eq = simplify(eq, False)
-    fx = lambda y: dowhile(y, lambda x: transform_dfs(x, abstractexpr))
+    fx = lambda x: transform_dfs(x, abstractexpr)
     fx2 = lambda y: dowhile(y, lambda x: transform_dfs(x, abstractexpr2))
     fx3 = lambda y: dowhile(y, lambda x: transform_dfs(x, abstractexpr3))
     return string_equation(str_form(fx3(fx2(fx(eq)))))

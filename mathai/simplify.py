@@ -472,12 +472,6 @@ def other_node(root):
                 if c != eq:
                     result_map[eq] = c
                     continue
-            d = tree_to_complex_strict(eq)
-            if d is not None:
-                tmp = complex_to_tree(d)
-                if tmp != eq:
-                    result_map[eq] = tmp
-                    continue
             if eq.name == "f_pow" and eq.children[0].name == "s_e":
                 if eq.children[1].name == "f_log":
                     result_map[eq] = eq.children[1].children[0]
@@ -506,40 +500,78 @@ def other_node(root):
             for child in reversed(eq.children):
                 stack.append((child, False))
     return result_map[root]
+def com(eq):
+    d = tree_to_complex_strict(eq)
+    if d is not None:
+        tmp = complex_to_tree(d)
+        if tmp != eq:
+            return tmp
+    return eq
 def solve3(eq):
     a = lambda x: multiply_node(flatten_tree(x))
     b = lambda x: addition_node(flatten_tree(x))
     c = lambda x: other_node(flatten_tree(x))
     return dowhile(eq, lambda x: a(c(b(x))))
-def simplify(eq, basic=True, break_factors=False):
-    if eq is None:
-        return None
-    if eq.name == "f_and" or eq.name == "f_not" or eq.name == "f_or":
-        new_children = []
-        for child in eq.children:
-            new_children.append(simplify(child, basic, break_factors))
-        return flatten_tree(TreeNode(eq.name, new_children))
+def break_f(eq):
     if eq.name[2:] in "gt ge lt le eq".split(" "):
-        if eq.name == "f_eq" and eq.children[0].name == "f_mul" and eq.children[1].name == "d_0" and break_factors:
+        if eq.name == "f_eq" and eq.children[0].name == "f_mul" and eq.children[1].name == "d_0":
             lst = list(set([TreeNode("f_eq", [item, tree_form("d_0")]) for item in factor_generation(eq.children[0]) if "v_" in str_form(item)]))
             if lst != []:
                 if len(lst) == 1:
-                    return simplify(lst[0], basic, break_factors)
-                return simplify(TreeNode("f_or", lst), basic, break_factors)
-        denom = eq.name != "f_eq"
-        tmp2 = simplify(eq.children[0] - eq.children[1], basic, break_factors)
-        tmp, denom = clear_div(tmp2, denom)
-        tmp = simplify(tmp, basic, break_factors)
-        value2 = eq.name[2:]
-        if denom is False:
-            value2 = {"ge":"le", "le":"ge", "gt":"lt", "lt":"gt", "eq":"eq"}[value2]
-        value2 = "f_"+value2
-        out = TreeNode(value2, [tmp, tree_form("d_0")])
-        return out
+                    return lst[0]
+                return TreeNode("f_or", lst)
+    return eq
+def simplify_h(eq):
+    if eq is None:
+        return None
+    stack = [(eq, False)]
+    result = {}
+    while stack:
+        node, visited = stack.pop()
+        if node is None:
+            continue
+        if visited:
+            if node.name in ("f_and", "f_or", "f_not"):
+                new_children = [result[c] for c in node.children]
+                result[node] = TreeNode(node.name, new_children)
+                continue
+            if node.name[2:] in ("gt", "ge", "lt", "le", "eq"):
+                denom = node.name != "f_eq"
+                tmp2 = solve3(node.children[0] - node.children[1])
+                if tmp2 is None:
+                    return None
+                tmp, denom = clear_div(tmp2, denom)
+                tmp = solve3(tmp)
+                if tmp is None:
+                    return None
+                value2 = node.name[2:]
+                if denom is False:
+                    value2 = {"ge":"le", "le":"ge", "gt":"lt", "lt":"gt", "eq":"eq"}[value2]
+                value2 = "f_" + value2
+                result[node] = TreeNode(value2, [tmp, tree_form("d_0")])
+                continue
+            out = solve3(node)
+            if out is None:
+                return None
+            result[node] = out
+            continue
+        if node.name in ("f_and", "f_or", "f_not"):
+            stack.append((node, True))
+            for c in node.children[::-1]:
+                stack.append((c, False))
+            continue
+        stack.append((node, True))
+    return result[eq]
+def simplify(eq, basic=True, break_factors=False):
+    if eq is None:
+        return None
     eq = flatten_tree(eq)
     if basic:
         eq = convert_to_basic(eq)
-    eq = solve3(eq)
+    eq = transform_dfs(eq, com)
+    eq = flatten_tree(simplify_h(eq))
+    if break_factors:
+        eq = transform_dfs(eq, break_f)
     return eq
 def log0_helper(eq):
     if eq.name == "f_eq":

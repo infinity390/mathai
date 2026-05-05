@@ -88,13 +88,13 @@ class Range:
         self.z = z
         self.do = True
         if variable is None:
-            self.variable = tree_form("d_0")
+            self.variable = tree_form("v_0")
         else:
             self.variable = variable
     def truth(self):
-        if self.r == [True]:
+        if self.r == [True] and self.z == []:
             return 1
-        if self.r == [False] and self.p == [] and self.z == []:
+        if self.r == [False] and self.p == []:
             return -1
         return 0
     def unfix(self):
@@ -168,23 +168,11 @@ class Range:
         else:
             return str(self.variable)+"∈"+"U".join(out)+"-"+out2
 def prepare(eq):
-    if eq.name[2:] in "and not or".split(" "):
-        output = TreeNode(eq.name, [])
-        for child in eq.children:
-            out = prepare(child)
-            if out is None:
-                return child
-            output.children.append(out)
-        output = TreeNode(output.name, output.children)
-        return output
-    elif eq.name[2:] in "gt lt eq ge le".split(" "):
+    if eq.name[2:] in "gt lt eq ge le".split(" "):
         eq = simplify(eq)
-        if "f_mod" not in str_form(eq):
-            out = prepare(eq.children[0])
-        else:
-            out = eq.children[0]
+        out = prepare(eq.children[0])
         if out is None:
-            return eq.children[0]
+            return None
         output = TreeNode(eq.name, [out, tree_form("d_0")])
         output = logic0(output)
         return output
@@ -193,7 +181,9 @@ def prepare(eq):
         if eq.name in ["s_true", "s_false"]:
             return eq
         if len(vlist(eq)) != 1:
-            return eq
+            if "v_" not in str_form(eq):
+                return eq
+            return None
         out = poly(eq, vlist(eq)[0])
         if out is None or len(out) > 3:
             output = []
@@ -203,13 +193,13 @@ def prepare(eq):
                     if out2 is not None and len(out2) <= 3:
                         output.append(poly_simplify(item.children[0])**-1)
                     else:
-                        output.append(item)
+                        return None
                 else:
                     out2 = poly(item, vlist(eq)[0])
                     if out2 is not None and len(out2) <= 3:
                         output.append(poly_simplify(item))
                     else:
-                        output.append(item)
+                        return None
             return simplify(product(output))
         else:
             return poly_simplify(eq)
@@ -305,7 +295,7 @@ def helper(eq, var="v_0"):
     final = Range(critical, equal, more)
     dic_table[eq2] = final
     return final   
-def wavycurvy_helper(eq, var=None):
+def wavycurvy_helper(eq, mode, var=None):
     if var is None and len(vlist(eq)) == 1:
         var = tree_form(vlist(eq)[0])
     if eq.name == "s_true":
@@ -321,8 +311,8 @@ def wavycurvy_helper(eq, var=None):
     if eq.name in ["f_le", "f_ge", "f_lt", "f_gt", "f_eq"]:
         out = None
         if "f_mod" not in str_form(eq) and len(vlist(eq)) < 2:
-            tmp = poly(eq.children[0], vlist(eq)[0])
-            if tmp is not None and len(tmp) <= 3:                
+            tmp = prepare(eq)
+            if tmp is not None:                
                 out = helper(eq)
                 out.variable = var
                 out = range2eq2(out)
@@ -346,11 +336,15 @@ def wavycurvy_helper(eq, var=None):
                 if item.truth() == -1:
                     return range2eq2(item)
             lst = [item for item in lst if item.truth() != 1]
+            if len(lst) == 0:
+                lst = [Range([True])]
         if eq.name == "f_or":
             for item in lst:
                 if item.truth() == 1:
                     return range2eq2(item)
             lst = [item for item in lst if item.truth() != -1]
+            if len(lst) == 0:
+                lst = [Range([False])]
         lst5 = {}
         for item in list(set([x.variable.name for x in lst])):
             lst5[tree_form(item)] = [item2 for item2 in lst if item == item2.variable.name]
@@ -366,8 +360,9 @@ def wavycurvy_helper(eq, var=None):
                 for child in lst[1:]:
                     ra = ra | child
             elif eq.name == "f_not":
-                ra = ~ra
+                return range2eq2(~ra)
             ra = ra.fix()
+           
             eq3.children.append(range2eq2(ra))
         if len(eq3.children) == 1:
             eq = eq3.children[0]
@@ -378,7 +373,7 @@ def wavycurvy_helper(eq, var=None):
             ra = eq2range(ra)
             for index2, eq2 in enumerate(lst3):
                 lst4 = tree_form("s_false")
-                if orig.name == "f_and" and ra is not None and ra.r == [False] and len(ra.z) == 0 and len(ra.p) > 0 and\
+                if mode and orig.name == "f_and" and ra is not None and ra.r == [False] and len(ra.z) == 0 and len(ra.p) > 0 and\
                    ra.variable.name in vlist(eq2):
                     for item in ra.p:
                         lst4 = lst4 | (TreeNode("f_eq", [ra.variable - item, tree_form("d_0")]) & replace(eq2, ra.variable, item))
@@ -395,6 +390,7 @@ def wavycurvy_helper(eq, var=None):
                         return output
                     else:
                         return lst4
+        
         if orig.name == eq.name:
             lst3 = eq.children+lst3
         else:
@@ -432,7 +428,9 @@ def eq2range(eq):
         c.variable = eq.children[3]
         return c
     return None
-def wavycurvy(eq, var=None):
+def wavycurvy(eq, mode=False, var=None):
+    if "f_mod" in str_form(eq):
+        mode = True
     if var is None:
         if len(vlist(eq)) == 1:
             var = tree_form(vlist(eq)[0])
@@ -440,7 +438,9 @@ def wavycurvy(eq, var=None):
     if len(vlist(eq)) == 0:
         return eq
     else:
-        eq = transform_dfs(eq, wavycurvy_helper, [var])
+        eq = dowhile(eq, lambda x: simplify(logic0(x)))
+        fx = lambda x: transform_dfs(x, wavycurvy_helper, [mode, var])
+        eq = fx(eq)
     if isinstance(eq, Range):
         return range2eq2(eq.fix())
     return eq

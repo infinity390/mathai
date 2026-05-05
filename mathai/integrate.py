@@ -14,7 +14,7 @@ from .tool import poly
 from fractions import Fraction
 from .trig import trig0, trig2, trig3, trig4, trig1, trig5, trig6
 from .apart import apart, apart2
-from .univariate_inequality import wavycurvy, eq2range, range2eq2
+from .univariate_inequality import wavycurvy, eq2range, range2eq2, Range
 from .printeq import *
 def integrate_summation(equation):
     if equation.name == "f_ref":
@@ -44,6 +44,8 @@ def subs_heuristic(eq, var):
                 output.append(str_form(eq.children[0]))
             if eq.name in ["f_sin", "f_cos"]:
                 output.append(str_form(eq))
+                if eq.children[0].name[:2] != "v_":
+                    output.append(str_form(eq.children[0]))
         if eq.name == "f_pow" and eq.children[0].name == "s_e" and "v_" in str_form(eq):
             if eq.children[1].name[:2] != "v_":
                 output.append(str_form(eq.children[1]))
@@ -62,7 +64,7 @@ def subs_heuristic(eq, var):
     tmp = list(set([simplify(tree_form(x)) for x in output]))
     tmp = sorted(tmp, key=lambda x: len(str_form(x)))
     poly_term = None
-    term_degree = 100
+    term_degree = 20
     output = []
     
     for item in tmp:
@@ -73,9 +75,14 @@ def subs_heuristic(eq, var):
             if term_degree > len(n):
                 poly_term = item
                 term_degree = len(n)
+    p = None
     if poly_term is None:
-        return tmp
-    return [poly_term]+output
+        p = tmp
+    else:
+        p = [poly_term]+output
+    if len(p)>3:
+        p = p[:3]
+    return p
 try_index = []
 try_lst = []
 def ref(eq):
@@ -182,9 +189,7 @@ def integrate_subs(equation, term, v1, v2):
     if v1 in str_form(equation):
         return none
     return dowhile(TreeNode("f_subs", [TreeNode("f_integrate", [simplify(equation), tree_form(origv2)]),tree_form(origv2) ,g]), lambda x: simplify(trig4(trig0(x))))
-def integrate_subs_main(equation):
-    if equation.name == "f_ref":
-        return equation
+def integrate_subs_main_helper(equation):
     eq2 = equation
     if eq2.name == "f_integrate":
         output = []
@@ -200,8 +205,9 @@ def integrate_subs_main(equation):
         if len(output) == 0:
             return equation
         return TreeNode("f_try", [item.copy_tree() for item in output])
-    else:
-        return TreeNode(equation.name, [integrate_subs_main(child) for child in equation.children])
+    return equation
+def integrate_subs_main(equation):
+    return transform_dfs(equation, integrate_subs_main_helper)
 def _sqint(equation):
     def sgn(eq):
         if compute(eq) <0:
@@ -428,17 +434,17 @@ def has_nested_trig(node, seen_trig=False):
 def sin_range(eq, n, wrt):
     a = tree_form(f"d_{n}")*parse("pi/2")
     b = tree_form(f"d_{n+1}")*parse("pi/2")
-    return wavycurvy(simplify(TreeNode("f_lt", [a,eq]) & TreeNode("f_lt", [eq,b])), wrt), tree_form("d_1") if (n // 2)%2 ==0 else tree_form("d_-1")
+    return eq2range(wavycurvy(simplify(TreeNode("f_lt", [a,eq]) & TreeNode("f_lt", [eq,b])), wrt)), tree_form("d_1") if (n // 2)%2 ==0 else tree_form("d_-1")
 def def_int(eq, start, end, wrt):
     if eq.name == "f_abs" and eq.children[0].name == "f_sin":
         lst = []
-        f = eq2range(wavycurvy(tree_form("s_true"), wrt))
+        f = Range()
         f.r = [False, start, True, end, False]
         a = math.floor(compute(start)/compute(parse("pi/2")))
         b = math.floor(compute(end)/compute(parse("pi/2")))+1
         for i in range(a,b+1):
             inq, sgn = sin_range(eq.children[0].children[0], i, wrt)
-            inq = eq2range(wavycurvy(inq&range2eq2(f))).fix()
+            inq = eq2range(wavycurvy(range2eq2(f&inq))).fix()
             if len(inq.r) != 5:
                 continue
             eqn = TreeNode("f_integrate", [eq.children[0]*sgn, wrt])
@@ -451,7 +457,7 @@ def def_int(eq, start, end, wrt):
         f = simplify(f)
         g = TreeNode("f_lt", [eq.children[0], tree_form("d_0")])
         g = simplify(g)
-        h = eq2range(wavycurvy(tree_form("s_true"), wrt))
+        h = Range()
         h.r = [False, start, True, end, False]
         f = eq2range(wavycurvy(f, wrt))
         f = (f & h).fix()
@@ -471,7 +477,7 @@ def integrate_definite(eq):
         if out is not None:
             return out
     return TreeNode(eq.name, [integrate_definite(child) for child in eq.children])
-def integrate_full(root, max_depth=4):
+def integrate_full(root):
     root = integrate_definite(trig0(root))
     def normalize(x, f=True):
         x = simplify(x)
