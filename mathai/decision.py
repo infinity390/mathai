@@ -120,7 +120,6 @@ def god(string):
             print(eq)
             eq = simple_wavycurvy(eq, True)
             eq = transform_dfs(eq, two_eq_handle)
-            
             fx = lambda x: logic0(simplify(factor2(dowhile(x, lambda y: simplify(fraction(y)))), True, True))
             eq = fx(eq)
             eq = flatten_tree(eq)

@@ -15,7 +15,7 @@ def _apart(eq, v=None):
     origv = vlist(eq)
     if eq.name != "f_mul":
         return eq
-    if any("f_"+item in str_form(eq) for item in "sin cos tan log".split(" ")):
+    if any(contain2(eq, "f_"+item) for item in "arctan sin cos tan log".split(" ")):
         return eq
     def exclude(eq):
         if eq.name == "f_pow" and frac(eq.children[1]) is not None and frac(eq.children[1]).denominator != 1:

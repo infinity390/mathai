@@ -38,9 +38,9 @@ def expand_nc(expr, label="f_mul"):
                     )
                 return TreeNode("f_add", terms)
         return TreeNode(label, factors)
+    return expr
 def expand2(eq, over="*"):
     over = {"@": "f_wmul", ".":"f_dot", "*":"f_mul"}[over]
     return expand_nc(eq, over)
 def expand(eq, over="*"):
-    eq = expand2(eq, over)
-    return TreeNode(eq.name, [expand(child, over) for child in eq.children])
+    return transform_dfs(eq, expand2, [over])

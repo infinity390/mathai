@@ -29,13 +29,11 @@ def integrate_summation(equation):
     return TreeNode(equation.name, [integrate_summation(child) for child in equation.children])
 def subs_heuristic(eq, var):
     output = []
+    last = []
     def collect2(eq):
         if eq.name == "f_pow" and frac(eq.children[1]) is not None and frac(eq.children[1]) == Fraction(1,2):
             if eq.children[0] == var:
                 output.append(str_form(eq))
-        if eq.name == "f_pow" and frac(eq.children[1]) is not None and frac(eq.children[1]).denominator == 1 and abs(frac(eq.children[1]).numerator) % 2 == 0:
-            if len(eq.children[0].children) == 0 or eq.children[0].children[0] == var:
-                output.append(str_form(eq.children[0]**2))
         if eq.name in ["f_pow"] and var.name in str_form(eq):
             if eq.children[1].name[:2] != "v_":
                 output.append(str_form(eq))
@@ -44,6 +42,7 @@ def subs_heuristic(eq, var):
                 output.append(str_form(eq.children[0]))
             if eq.name in ["f_sin", "f_cos"]:
                 output.append(str_form(eq))
+                last.append(eq.children[0].fx("tan"))
                 if eq.children[0].name[:2] != "v_":
                     output.append(str_form(eq.children[0]))
         if eq.name == "f_pow" and eq.children[0].name == "s_e" and "v_" in str_form(eq):
@@ -80,8 +79,11 @@ def subs_heuristic(eq, var):
         p = tmp
     else:
         p = [poly_term]+output
+    last = list(set(last))
     if len(p)>3:
         p = p[:3]
+    elif len(p)<3:
+        p = (p+last)[:3]
     return p
 try_index = []
 try_lst = []
@@ -102,16 +104,14 @@ def place_try2(eq):
 def _solve_integrate(eq):
     if eq is None:
         return None
-    if eq.name == "f_ref":
-        return eq
     if eq.name == "f_subs":
-        if all(item not in str_form(eq.children[0]) for item in ["f_integrate", "f_subs", "f_try"]):
-            return replace(eq.children[0], eq.children[1], eq.children[2])
+        if all(not contain2(eq.children[0], item) for item in ["f_integrate", "f_subs", "f_try"]):
+            return replace(copy.deepcopy(eq.children[0]), eq.children[1], eq.children[2])
     if eq.name == "f_try":
         for child in eq.children:
-            if all(item not in str_form(child) for item in ["f_integrate", "f_subs", "f_try"]):
+            if not contain2(child, "f_integrate"):
                 return child
-    return TreeNode(eq.name, [_solve_integrate(child) for child in eq.children])
+    return eq
 def handle_try(eq):
     global try_lst, try_index
     if eq.name == "f_try":
@@ -159,7 +159,8 @@ def rm(eq):
         eq = TreeNode(eq.name, list(set(eq.children)))
     return TreeNode(eq.name, [rm(child) for child in eq.children if child is not None])
 def solve_integrate(eq):
-    eq2 = dowhile(eq, _solve_integrate)
+    fx = lambda x: transform_dfs(x, _solve_integrate, [])
+    eq2 = dowhile(eq, fx)
     eq2 = rm(eq2)
     if eq2 is None:
         return None
@@ -502,7 +503,7 @@ def integrate_full(root):
     orig = copy.deepcopy(root)
     eq = root
     for item in [[lambda x: x], [factor2, apart, normalize2, apart2, normalize], [trig1, normalize2],\
-                 [factor1, normalize, trig6, normalize, expand, normalize, integrate_subs_main, normalize],\
+                 [factor1, normalize, trig6, normalize, expand, normalize, integrate_subs_main, normalize, factor2, apart, normalize2],\
                  [normalize, integrate_subs_main, normalize2, expand, normalize, byparts, normalize]]:
         for item2 in item:
             eq = item2(eq)
@@ -516,5 +517,7 @@ def integrate_full(root):
             break
         eq = copy.deepcopy(orig)
     result = solve_integrate(result)
+    if result is None:
+        result = root
     result = dowhile(result, lambda x: trig0(simplify(fraction(x))))
     return result
