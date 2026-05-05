@@ -110,6 +110,7 @@ def apart(eq):
         if eq != eq2:
             return eq2
         return TreeNode(eq.name, [helper(child) for child in eq.children])
+    eq = apart2(eq)
     eq = helper(eq)
     eq = fx(eq)
     return eq

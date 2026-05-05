@@ -53,7 +53,7 @@ def longdiv(p, q, p_min=0, q_min=0):
         var = list(var)[0]
         p = poly(p, var)
         q = poly(q, var)
-        if p is not None and q is not None and len(p)-1>=p_min and len(q)-1>=q_min and len(p)>len(q):
+        if p is not None and q is not None and len(p)-1>=p_min and len(q)-1>=q_min and len(p)>=len(q):
             a, b = poly_div(p, q)
             return unpoly(a, var), unpoly(b, var)
     return None

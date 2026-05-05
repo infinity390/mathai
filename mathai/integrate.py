@@ -502,8 +502,8 @@ def integrate_full(root):
     log = []
     orig = copy.deepcopy(root)
     eq = root
-    for item in [[lambda x: x], [factor2, apart, normalize2, apart2, normalize], [trig1, normalize2],\
-                 [factor1, normalize, trig6, normalize, expand, normalize, integrate_subs_main, normalize, factor2, apart, normalize2],\
+    for item in [[lambda x: x], [factor2, apart, normalize2, normalize], [trig1, normalize2],\
+                 [factor1, normalize, trig6, normalize, expand, normalize, integrate_subs_main, normalize, factor2, simplify, apart, normalize2],\
                  [normalize, integrate_subs_main, normalize2, expand, normalize, byparts, normalize]]:
         for item2 in item:
             eq = item2(eq)
