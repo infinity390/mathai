@@ -8,6 +8,7 @@ from .structure import transform_formula
 from .parser import parse
 from .fraction import fraction
 from .factor import rationalize_sqrt
+from .logic import logic0
 from .structure import structure
 trig_sin_table = {
     (0,1): parse("0"),
@@ -21,15 +22,15 @@ trig_sin_table = {
     (1,1): parse("0")            
 }
 trig_cos_table = {
-    (0,1): parse("1"),           
-    (1,6): parse("3^(1/2)/2"),   
-    (1,4): parse("2^(1/2)/2"),   
-    (1,3): parse("1/2"),         
-    (1,2): parse("0"),           
-    (2,3): parse("-1/2"),        
-    (3,4): parse("-(2^(1/2))/2"),  
-    (5,6): parse("-1/2"),        
-    (1,1): parse("-1")           
+    (0, 1): parse("1"),
+    (1, 6): parse("sqrt(3)/2"),
+    (1, 4): parse("sqrt(2)/2"),
+    (1, 3): parse("1/2"),
+    (1, 2): parse("0"),
+    (2, 3): parse("-1/2"),
+    (3, 4): parse("-sqrt(2)/2"),
+    (5, 6): parse("-sqrt(3)/2"),
+    (1, 1): parse("-1")
 }
 trig_tan_table = {
     (0,1): parse("0"),           
@@ -43,6 +44,7 @@ for key in trig_sin_table.keys():
     trig_sin_table[key] = simplify(trig_sin_table[key])
 for key in trig_tan_table.keys():
     trig_tan_table[key] = simplify(trig_tan_table[key])
+from fractions import Fraction
 def trig0_helper(eq):
     if eq is None:
         return None
@@ -149,7 +151,8 @@ def trig0_helper(eq):
             return trig_cos_table[tuple(out)]
     return cur
 def trig0(eq):
-    return transform_dfs(eq, trig0_helper)
+    out = transform_dfs(eq, trig0_helper)
+    return out
 def cog(expr):
     expr = TreeNode(expr.name, [product_to_sum(child) for child in expr.children])
     expr = trig0(simplify(expr))
@@ -369,6 +372,71 @@ def trig5(eq):
     if out != eq:
         return out
     return TreeNode(eq.name, [trig5(child) for child in eq.children])
+def trig7_h(eq):
+    if not contain2(eq, "f_sin") or not contain2(eq, "f_cos"):
+        return eq
+    n, d = num_dem(eq)
+    n = map(simplify, factor_generation(n))
+    d = map(simplify, factor_generation(d))
+    if d == 1:
+        return eq
+    n = Counter(n)
+    d = Counter(d)
+    done = False
+    for item in n:
+        tmp = structure(copy.deepcopy(item),parse("sin(A)"), parse("A"), True, "")
+        if tmp is None:
+            continue
+        for item2 in d:
+            tmp2 = structure(copy.deepcopy(item2),parse("cos(A)"), parse("A"), True, "")
+            if tmp2 is None:
+                continue
+            if tmp != tmp2:
+                continue
+            m = min(n[item], d[item2])
+            n[item] -= m
+            d[item2] -= m
+            n[tmp.fx("tan")] += m
+    return simplify(product(list(n.elements()))/product(list(d.elements())))
+def trig7(eq):
+    return transform_dfs(eq, trig7_h, [])
+def zu_simplify_h(eq):
+    if eq.name.startswith("f_") and len(eq.children) == 1:
+        inner = eq.children[0]
+        if inner.name == "f_zu":
+            return TreeNode("f_zu", [inner.children[0].fx(eq.name[2:]), inner.children[1]])
+        elif inner.name == "f_or2":
+            return TreeNode(
+                "f_or2",
+                [
+                    TreeNode(eq.name, [item])
+                    for item in inner.children
+                ]
+            )
+    if eq.name == "f_zu" and not contain(eq.children[0], eq.children[1]):
+        return eq.children[0]
+    if eq.name == "f_cos":
+        lst = factor_generation(eq.children[0], True)
+        if tree_form("s_pi") in lst and tree_form("d_2") in lst:
+            return tree_form("d_1")
+    if eq.name == "f_sin":
+        lst = factor_generation(eq.children[0], True)
+        if tree_form("s_pi") in lst and tree_form("d_2") in lst:
+            return tree_form("d_0")
+    if (
+        eq.name == "f_eq"
+        and eq.children[0].name == "f_or2"
+    ):
+        return TreeNode(
+            "f_or",
+            [
+                TreeNode("f_eq", [item, eq.children[1]])
+                for item in eq.children[0].children
+            ]
+        )
+    return eq
+def zu_simplify(eq):
+    return dowhile(eq, lambda x: trig4(trig0(simplify(expand(expand(transform_dfs(x, zu_simplify_h, []), "f_or2", "f_add"),"f_or2","f_mul")))))
 def trig2(eq):
     if eq.name != "f_add":
         return TreeNode(eq.name, [trig2(child) for child in eq.children])

@@ -33,7 +33,7 @@ from .fraction import fraction
 
 from .inverse import inverse
 
-from .trig import trig0, trig1, trig2, trig3, trig4, trig5, trig6
+from .trig import trig0, trig1, trig2, trig3, trig4, trig5, trig6, zu_simplify
 
 from .logic import logic0, set_sub, truth_gen, logic4, logic3, distribute
 
@@ -57,3 +57,5 @@ from .tool import longdiv, poly
 from .statistics import expect
 
 from .structure import structure
+
+from .want import solve_want

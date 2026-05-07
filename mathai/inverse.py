@@ -1,6 +1,7 @@
 from .base import *
 from .simplify import simplify
 from .expand import expand
+from .trig import trig7
 def inverse(rhs,term, sign=None):
     term = tree_form(term)
     lhs = tree_form("d_0")
@@ -8,7 +9,7 @@ def inverse(rhs,term, sign=None):
     while not rhs==term:
         if rhs.name == "f_add":
             if all(term in factor_generation(child) for child in rhs.children):
-                newrhs = simplify(expand(rhs*term**-1))
+                newrhs = trig7(simplify(expand(rhs*term**-1)))
                 if not contain(newrhs, term):
                     rhs = term * newrhs
             else:
@@ -33,7 +34,12 @@ def inverse(rhs,term, sign=None):
             lhs = lhs.fx("log")/rhs.children[0].fx("log")
             rhs = copy.deepcopy(rhs.children[1])
         elif rhs.name == "f_sin" and contain(rhs.children[0], term):
-            lhs = lhs.fx("arcsin")
+            a = lhs.fx("arcsin")
+            two_pi_k = tree_form("d_2") * tree_form("s_pi") * tree_form("v_13")
+            pi = tree_form("s_pi")
+            branch1 = TreeNode("f_zu", [a + two_pi_k, tree_form("v_13")])
+            branch2 = TreeNode("f_zu", [pi - a + two_pi_k, tree_form("v_13")])
+            lhs = TreeNode("f_or2", [branch1, branch2])
             rhs = copy.deepcopy(rhs.children[0])
         elif rhs.name == "f_arcsin" and contain(rhs.children[0], term):
             lhs = lhs.fx("sin")
@@ -42,7 +48,12 @@ def inverse(rhs,term, sign=None):
             lhs = lhs.fx("cos")
             rhs = copy.deepcopy(rhs.children[0])
         elif rhs.name == "f_cos" and contain(rhs.children[0], term):
-            lhs = lhs.fx("arccos")
+            k_term = tree_form("d_2") * tree_form("s_pi") * tree_form("v_13")
+            theta = lhs.fx("arccos")
+            lhs = TreeNode("f_or2",[
+                TreeNode("f_zu", [theta + k_term, tree_form("v_13")]),
+                TreeNode("f_zu", [tree_form("s_pi") - theta + k_term, tree_form("v_13")])
+            ])
             rhs = copy.deepcopy(rhs.children[0])
         elif rhs.name == "f_log" and contain(rhs.children[0], term):
             lhs = tree_form("s_e")**lhs

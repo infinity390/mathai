@@ -1,12 +1,14 @@
+import copy
 from .inverse import inverse
 from .integrate import integrate_full
 from .ode import diffsolve as ode_solve
 from .parser import parse
 from .simplify import simplify, log0
+from .want import solve_want
 from .base import *
 from .diff import diff
-from .trig import trig0, trig1
-from .univariate_inequality import wavycurvy, prepare, absolute, handle_sqrt, eq2range, domain
+from .trig import trig0, trig1, zu_simplify
+from .univariate_inequality import wavycurvy, prepare, absolute, handle_sqrt, eq2range, domain, simple_wavycurvy
 from .bivariate_inequality import solve_logically
 from .fraction import fraction
 from .expand import expand
@@ -14,23 +16,6 @@ from .logic import logic0, set_sub, truth_gen, distribute
 from .factor import factor2, factor
 from .limit import limit1, limit5
 from .linear import linear_solve
-def simple_wavycurvy(eq, mode=False):
-    eq = eq & domain(eq)
-    fx = lambda x: dowhile(x, lambda y: logic0(fraction(simplify(y))))
-    eq = fx(eq)
-    if "sqrt" in str(eq):
-        eq = handle_sqrt(eq)
-        eq = fx(eq)
-    eq = factor2(eq)
-    eq = simplify(eq, True, True)
-    eq = wavycurvy(eq, mode)
-    if eq.name == "f_range":
-        tmp = eq2range(eq).truth()
-        if tmp == 1:
-            return tree_form("s_true")
-        if tmp == -1:
-            return tree_form("s_false")
-    return eq
 def two_eq_handle(eq):
     eq = flatten_tree(eq)
     orig = eq
@@ -48,6 +33,7 @@ def two_eq_handle(eq):
                     if i >= j:
                         continue
                     a, b = copy.deepcopy((eq.children[i], eq.children[j]))
+                    lst = []
                     if a.name != "f_eq" or b.name != "f_eq":
                         continue
                     a_expr = a.children[0]
@@ -58,7 +44,12 @@ def two_eq_handle(eq):
                         if inv is None:
                             continue
                         reduced = replace(copy.deepcopy(b_expr), tree_form(v1), inv)
-                        reduced = simplify(reduced)
+                        if contain2(reduced, "f_zu"):
+                            reduced = zu_simplify(reduced)
+                            if reduced is None:
+                                continue
+                        else:
+                            reduced = simplify(reduced)
                         pair = (
                             TreeNode("f_eq", [tree_form(v1), inv]) &
                             TreeNode("f_eq", [reduced, tree_form("d_0")])
@@ -67,18 +58,24 @@ def two_eq_handle(eq):
                             result = pair
                         else:
                             result = result | pair
+                    result = zu_simplify(result)
                     tmp = TreeNode(eq.name, eq.children[:i]+eq.children[i+1:j]+eq.children[j+1:])
                     if len(tmp.children) == 1:
                         tmp = tmp.children[0]
+                    output = None
                     if len(tmp.children) == 0:
-                        return flatten_tree(distribute(result, "or_over_and"))
-                    return flatten_tree(distribute(result, "or_over_and")&tmp)
+                        output = flatten_tree(distribute(result, "or_over_and"))
+                    else:
+                        output = flatten_tree(distribute(result, "or_over_and")&tmp)
+                    return output
     return orig
 def god(string):
     print(f"? {string}")
     print("thinking...")
     eq = None
     eq = parse(string)
+    eq = solve_want(eq)
+    orig = copy.deepcopy(eq)
     log = [eq]
     if "f_limit" in str_form(eq):
         eq = limit1(limit5(eq))
@@ -88,24 +85,25 @@ def god(string):
         print(f"=> {eq}")
         print()
         return eq
-    elif not (eq.name == "f_and" and len(vlist(eq)) > 1) and any(contain2(eq, "f_"+item) for item in "eq lt le ge gt".split(" ")) and all(not contain2(eq, "f_"+item) for item in "limit dif integrate".split(" ")):
-        lst = [simplify, log0, simplify, lambda x: dowhile(x, absolute), lambda x: dowhile(x, lambda y: simplify(expand(y))), lambda x: dowhile(x, lambda y: simplify(fraction(y))), logic0, simple_wavycurvy, simple_wavycurvy]
-        fx2 = lambda x: dowhile(x, lambda y: simplify(fraction(y)))
-        fx3 = lambda x: dowhile(x, trig1)
-        lst2 = [simplify, trig0, lambda x: dowhile(x, lambda y: fx2(fx3(y))), logic0]
-        sel = lst.copy()
-        if any(contain2(eq, "f_"+item) for item in "sin cos tan cosec sec cot".split(" ")) or\
-           len(vlist(eq)) > 1:
-            sel = lst2
-        for item in sel:
+    elif contain2(eq, "f_abs") and any(contain2(eq, "f_"+item) for item in "eq lt le ge gt".split(" ")) and all(not contain2(eq, "f_"+item) for item in "limit dif integrate".split(" ")):
+        lst2 = [simplify, log0, simplify, lambda x: dowhile(x, absolute)]
+        for item in lst2:
             eq = item(eq)
             if eq not in log:
                 log.append(eq)
                 print(eq)
-        print(f"=> {eq}")
-        print()
-        return eq
-    elif "f_dif" in str_form(eq) or "f_integrate" in str_form(eq):
+    elif all(not contain2(eq, "f_"+item) for item in "integrate dif".split(" ")) and\
+         any(contain2(eq, "f_"+item) for item in "sin cos tan cosec sec cot".split(" ")):
+        fx2 = lambda x: dowhile(x, lambda y: simplify(fraction(y)))
+        fx3 = lambda x: dowhile(x, trig1)
+        lst2 = [simplify, trig0, lambda x: dowhile(x, lambda y: fx2(fx3(y))), logic0]
+        for item in lst2:
+            eq = item(eq)
+            if eq not in log:
+                log.append(eq)
+                print(eq)
+    if "f_dif" in str_form(eq) or "f_integrate" in str_form(eq):
+        eq = orig
         if "f_dif" in str_form(eq) and "f_integrate" not in str_form(eq):
             eq = simplify(ode_solve(simplify(eq)))
             log.append(eq)
@@ -131,6 +129,8 @@ def god(string):
             eq = TreeNode(eq.name, list(set(eq.children)))
             if len(eq.children) == 1:
                 eq = eq.children[0]
+    eq = dowhile(eq, simple_wavycurvy)
+    eq = solve_want(eq)
     eq = simplify(expand(simplify(fraction(simplify(eq)))))
     print(f"=> {eq}")
     print()

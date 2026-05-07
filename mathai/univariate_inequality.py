@@ -5,6 +5,7 @@ from collections import Counter
 from .simplify import simplify
 from .expand import expand
 from .fraction import fraction
+from .factor import factor2
 import copy
 from .diff import diff
 from .logic import logic0
@@ -546,3 +547,20 @@ def domain(eq):
     if eq.name in ["f_lt", "f_gt", "f_le", "f_ge", "f_eq"]:
         return eq & out
     return out
+def simple_wavycurvy(eq, mode=False):
+    eq = eq & domain(eq)
+    fx = lambda x: dowhile(x, lambda y: logic0(fraction(simplify(y))))
+    eq = fx(eq)
+    if "sqrt" in str(eq):
+        eq = handle_sqrt(eq)
+        eq = fx(eq)
+    eq = factor2(eq)
+    eq = simplify(eq, True, True)
+    eq = wavycurvy(eq, mode)
+    if eq.name == "f_range":
+        tmp = eq2range(eq).truth()
+        if tmp == 1:
+            return tree_form("s_true")
+        if tmp == -1:
+            return tree_form("s_false")
+    return eq
