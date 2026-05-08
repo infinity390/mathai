@@ -5,12 +5,12 @@ def expand_nc(expr, labels=("f_add", "f_mul")):
     if expr.name not in {a, b, "f_pow"}:
         return expr
     expr = flatten_tree(expr)
-    if expr.name == "f_pow":
+    if b == "f_mul" and expr.name == "f_pow":
         base, exp = expr.children
         n = frac(exp)
         if n and n.denominator == 1 and n.numerator > 1:
             factors = [base] * n.numerator
-            return TreeNode(b, factors)
+            return TreeNode("f_mul", factors)
     if expr.name == b:
         factors = []
         for c in expr.children:

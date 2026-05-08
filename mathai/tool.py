@@ -97,7 +97,7 @@ def poly(eq, to_compute, m=10):
         eq = replace(eq, tree_form(var), tree_form("d_"+str(val)))
         return eq
     def inv(eq):
-        if eq.name[:2] == "f_" and eq.name[2:] in "arccos arcsin ref try integrate subs mod".split(" "):
+        if eq.name[:2] == "f_" and eq.name[2:] in "arccos try integrate subs mod".split(" "):
             return False
         if eq.name[2:] in ["sin", "cos", "log"] and contain(eq.children[0], tree_form(to_compute)):
             return False

@@ -33,15 +33,13 @@ from .fraction import fraction
 
 from .inverse import inverse
 
-from .trig import trig0, trig1, trig2, trig3, trig4, trig5, trig6, zu_simplify
-
 from .logic import logic0, set_sub, truth_gen, logic4, logic3, distribute
 
 from .apart import apart, apart2
 
 from .limit import limit1, limit2, limit0, limit3, limit4
 
-from .univariate_inequality import wavycurvy, absolute, domain, handle_sqrt, prepare, eq2range, range2eq2
+from .univariate_inequality import wavycurvy, absolute, domain, handle_sqrt, prepare, eq2range, range2eq2, simple_wavycurvy
 from .bivariate_inequality import solve_logically
 
 from .matrix import matrix_solve
@@ -58,4 +56,4 @@ from .statistics import expect
 
 from .structure import structure
 
-from .want import solve_want
+from .trig import trig0, trig1, trig2, trig3, trig4, trig5, trig6, zu_simplify

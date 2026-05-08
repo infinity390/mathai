@@ -1,6 +1,7 @@
 from collections import Counter
 import math
 import itertools
+from .logic import logic0
 from .simplify import simplify
 from .base import *
 from .expand import expand
@@ -8,8 +9,9 @@ from .structure import transform_formula
 from .parser import parse
 from .fraction import fraction
 from .factor import rationalize_sqrt
-from .logic import logic0
+from .inverse import inverse
 from .structure import structure
+from .univariate_inequality import simple_wavycurvy, eq2range, Range, range2eq2
 trig_sin_table = {
     (0,1): parse("0"),
     (1,6): parse("1/2"),
@@ -22,15 +24,15 @@ trig_sin_table = {
     (1,1): parse("0")            
 }
 trig_cos_table = {
-    (0, 1): parse("1"),
-    (1, 6): parse("sqrt(3)/2"),
-    (1, 4): parse("sqrt(2)/2"),
-    (1, 3): parse("1/2"),
-    (1, 2): parse("0"),
-    (2, 3): parse("-1/2"),
-    (3, 4): parse("-sqrt(2)/2"),
-    (5, 6): parse("-sqrt(3)/2"),
-    (1, 1): parse("-1")
+    (0,1): parse("1"),
+    (1,6): parse("sqrt(3)/2"),
+    (1,4): parse("sqrt(2)/2"),
+    (1,3): parse("1/2"),
+    (1,2): parse("0"),
+    (2,3): parse("-1/2"),
+    (3,4): parse("-sqrt(2)/2"),
+    (5,6): parse("-sqrt(3)/2"),
+    (1,1): parse("-1")
 }
 trig_tan_table = {
     (0,1): parse("0"),           
@@ -44,7 +46,6 @@ for key in trig_sin_table.keys():
     trig_sin_table[key] = simplify(trig_sin_table[key])
 for key in trig_tan_table.keys():
     trig_tan_table[key] = simplify(trig_tan_table[key])
-from fractions import Fraction
 def trig0_helper(eq):
     if eq is None:
         return None
@@ -151,8 +152,85 @@ def trig0_helper(eq):
             return trig_cos_table[tuple(out)]
     return cur
 def trig0(eq):
-    out = transform_dfs(eq, trig0_helper)
+    return transform_dfs(eq, trig0_helper)
+def int_list_range(ra):
+    ra = eq2range(ra)
+    ra.variable = tree_form("v_13")
+    mi = round(min(map(compute, [ra.r[1]] + ra.p))) - 1
+    mx = round(max(map(compute, [ra.r[-2]] + ra.p))) + 1
+    lst = []
+    for i in range(mi, mx+1):
+        out = eq2range(simple_wavycurvy(TreeNode("f_eq", [tree_form("v_13")-tree_form(f"d_{i}"), tree_form("d_0")])))
+        if (out & ra).truth() != -1:
+            lst.append(i)
+    return lst
+def zu_and_range_r_h(eq, a, b, var):
+    out = logic0(simplify(TreeNode("f_lt", [a, eq]) & TreeNode("f_lt", [eq, b])))
+    out = simple_wavycurvy(out)
+    out = int_list_range(out)
+    out = list(set(map(simplify, [replace(copy.deepcopy(eq), tree_form("v_13"), tree_form(f"d_{item}")) for item in out])))
+    out = Range([False], out, [])
+    out.variable = var
     return out
+def zu_and_range_p_h(eq, val, var):
+    out = inverse(eq-val, "v_13")
+    out = simplify(out)
+    if out.name.startswith("d_"):
+        out = Range([False], [simplify(replace(copy.deepcopy(eq),tree_form("v_13"),out))], [])
+    else:
+        out = Range([False], [], [])
+    out.variable = var
+    return out
+def zu_and_range_h(eq, ra, var):
+    ra = eq2range(ra)
+    ra2 = Range([False])
+    if ra.r[0] or ra.r[-1]:
+        return None
+    for i in range(2,len(ra.r)-1,2):
+        if ra.r[i] == True:
+            ra2 = ra2 | zu_and_range_r_h(eq, ra.r[i-1], ra.r[i+1], var)
+    for item in ra.p:
+        ra2 = ra2 | zu_and_range_p_h(eq, item, var)
+    for item in ra.z:
+        ra2 = ra2 & ~zu_and_range_p_h(eq, item, var)
+    return range2eq2(ra2)
+def zu_simplify_h(eq):
+    if eq.name in ["f_sin", "f_cos"] and eq.children[0].name == "f_zu":
+        return eq.children[0].children[0].fx(eq.name[2:]).fx("zu")
+    if eq.name == "f_zu" and not contain(eq.children[0], tree_form("v_13")):
+        return eq.children[0]
+    if eq.name == "f_sin":
+        lst = factor_generation(eq.children[0], True)
+        if tree_form("s_pi") in lst and tree_form("d_2") in lst:
+            return tree_form("d_0")
+    if eq.name == "f_cos":
+        lst = factor_generation(eq.children[0], True)
+        if tree_form("s_pi") in lst and tree_form("d_2") in lst:
+            return tree_form("d_1")
+    if eq.name == "f_and":
+        lst = []
+        for i in range(len(eq.children)):
+            for j in range(len(eq.children)):
+                if i == j:
+                    continue
+                if eq.children[i].name == "f_range" and eq.children[j].name == "f_eq" and contain2(eq.children[j], "f_zu") and\
+                   len(vlist(eq.children[j]))==2:
+                    var = list(set(vlist(eq.children[j]))-set(["v_13"]))[0]
+                    tmp = inverse(copy.deepcopy(eq.children[j].children[0]), var)
+                    if eq.children[i].children[-1] == tree_form(var):
+                        out = zu_and_range_h(tmp.children[0], eq.children[i], tree_form(var))
+                        if out is None:
+                            continue
+                        if i > j:
+                            i, j= j, i
+                        lst += [out]+eq.children[:i]+eq.children[i+1:j]+eq.children[j+1:]
+                        if len(lst) == 1:
+                            return lst[0]
+                        return TreeNode("f_and", lst)
+    return eq
+def zu_simplify(eq):
+    return dowhile(eq, lambda x: simplify(trig0(trig4(transform_dfs(x, zu_simplify_h, [])))))
+
 def cog(expr):
     expr = TreeNode(expr.name, [product_to_sum(child) for child in expr.children])
     expr = trig0(simplify(expr))
@@ -372,71 +450,6 @@ def trig5(eq):
     if out != eq:
         return out
     return TreeNode(eq.name, [trig5(child) for child in eq.children])
-def trig7_h(eq):
-    if not contain2(eq, "f_sin") or not contain2(eq, "f_cos"):
-        return eq
-    n, d = num_dem(eq)
-    n = map(simplify, factor_generation(n))
-    d = map(simplify, factor_generation(d))
-    if d == 1:
-        return eq
-    n = Counter(n)
-    d = Counter(d)
-    done = False
-    for item in n:
-        tmp = structure(copy.deepcopy(item),parse("sin(A)"), parse("A"), True, "")
-        if tmp is None:
-            continue
-        for item2 in d:
-            tmp2 = structure(copy.deepcopy(item2),parse("cos(A)"), parse("A"), True, "")
-            if tmp2 is None:
-                continue
-            if tmp != tmp2:
-                continue
-            m = min(n[item], d[item2])
-            n[item] -= m
-            d[item2] -= m
-            n[tmp.fx("tan")] += m
-    return simplify(product(list(n.elements()))/product(list(d.elements())))
-def trig7(eq):
-    return transform_dfs(eq, trig7_h, [])
-def zu_simplify_h(eq):
-    if eq.name.startswith("f_") and len(eq.children) == 1:
-        inner = eq.children[0]
-        if inner.name == "f_zu":
-            return TreeNode("f_zu", [inner.children[0].fx(eq.name[2:]), inner.children[1]])
-        elif inner.name == "f_or2":
-            return TreeNode(
-                "f_or2",
-                [
-                    TreeNode(eq.name, [item])
-                    for item in inner.children
-                ]
-            )
-    if eq.name == "f_zu" and not contain(eq.children[0], eq.children[1]):
-        return eq.children[0]
-    if eq.name == "f_cos":
-        lst = factor_generation(eq.children[0], True)
-        if tree_form("s_pi") in lst and tree_form("d_2") in lst:
-            return tree_form("d_1")
-    if eq.name == "f_sin":
-        lst = factor_generation(eq.children[0], True)
-        if tree_form("s_pi") in lst and tree_form("d_2") in lst:
-            return tree_form("d_0")
-    if (
-        eq.name == "f_eq"
-        and eq.children[0].name == "f_or2"
-    ):
-        return TreeNode(
-            "f_or",
-            [
-                TreeNode("f_eq", [item, eq.children[1]])
-                for item in eq.children[0].children
-            ]
-        )
-    return eq
-def zu_simplify(eq):
-    return dowhile(eq, lambda x: trig4(trig0(simplify(expand(expand(transform_dfs(x, zu_simplify_h, []), "f_or2", "f_add"),"f_or2","f_mul")))))
 def trig2(eq):
     if eq.name != "f_add":
         return TreeNode(eq.name, [trig2(child) for child in eq.children])

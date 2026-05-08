@@ -1,11 +1,11 @@
 import itertools
+from .factor import factor2
 from .base import *
 from .inverse import inverse
 from collections import Counter
 from .simplify import simplify
 from .expand import expand
 from .fraction import fraction
-from .factor import factor2
 import copy
 from .diff import diff
 from .logic import logic0
@@ -259,6 +259,7 @@ def helper(eq, var="v_0"):
                 out = inverse(item, vlist(item)[0])
                 critical.append(out)
         else:
+            
             if diff(diff(item, v), v) != tree_form("d_0"):
                 a = replace(diff(diff(item, v), v), tree_form(v), tree_form("d_0"))/tree_form("d_2")
                 if "v_" in str_form(a):
@@ -267,7 +268,7 @@ def helper(eq, var="v_0"):
                     sign = not sign
                 continue
             else:
-                tmp2 = diff(copy.deepcopy(item))
+                tmp2 = diff(copy.deepcopy(item), v)
                 if compute(tmp2)<0:
                     sign = not sign
                     item = simplify(item * tree_form("d_-1"))
@@ -313,7 +314,7 @@ def wavycurvy_helper(eq, mode, var=None):
         out = None
         if "f_mod" not in str_form(eq) and len(vlist(eq)) < 2:
             tmp = prepare(eq)
-            if tmp is not None:                
+            if tmp is not None:
                 out = helper(eq)
                 out.variable = var
                 out = range2eq2(out)
@@ -539,13 +540,13 @@ def domain(eq):
     helper2(eq)
     out = list(set([simplify(item) for item in out]))
     if out == []:
-        return eq
+        return tree_form("s_true")
     if len(out)==1:
         out = out[0]
     else:
         out = TreeNode("f_and", list(out))
-    if eq.name in ["f_lt", "f_gt", "f_le", "f_ge", "f_eq"]:
-        return eq & out
+    #if eq.name in ["f_lt", "f_gt", "f_le", "f_ge", "f_eq"]:
+    #    return eq & out
     return out
 def simple_wavycurvy(eq, mode=False):
     eq = eq & domain(eq)

@@ -12,7 +12,7 @@ from .structure import transform_formula
 from .inverse import inverse
 from .tool import poly
 from fractions import Fraction
-from .trig import trig0, trig2, trig3, trig4, trig1, trig5, trig6, zu_simplify
+from .trig import trig0, trig2, trig3, trig4, trig1, trig5, trig6
 from .apart import apart, apart2
 from .univariate_inequality import wavycurvy, eq2range, range2eq2, Range
 from .printeq import *
@@ -126,6 +126,32 @@ def handle_try(eq):
         return TreeNode("f_try", output)
     else:
         return TreeNode(eq.name, [handle_try(child) for child in eq.children])
+def inteq(eq):
+    if eq.name == "f_try":
+        eq2 = None
+        output = []
+        for child in eq.children:
+            if child.name == "f_ref":
+                eq2 = child.children[0]
+                break
+        if eq2 is None:
+            return eq
+        for child in eq.children:
+            if child.name == "f_ref":
+                output.append(child)
+            else:
+                eq3 = simplify(expand(simplify(eq2 - child)))
+                if contain(eq3, eq2):
+                    out = inverse(eq3, str_form(eq2))
+                    if out is None:
+                        output.append(child)
+                    else:
+                        output.append(out)
+                else:
+                    output.append(child)
+        return TreeNode("f_try", output)
+    else:
+        return TreeNode(eq.name, [inteq(child) for child in eq.children])
 def rm(eq):
     if eq is None:
         return None
@@ -160,11 +186,10 @@ def integrate_subs(equation, term, v1, v2):
         eq = replace(eq, tree_form(v1), t)
         eq2 = replace(diff(g, v1), tree_form(v1), t)
         equation = eq/eq2
-        equation = zu_simplify(equation)
-        
+        equation = simplify(equation)
     if v1 in str_form(equation):
         return none
-    return dowhile(TreeNode("f_subs", [TreeNode("f_integrate", [simplify(equation), tree_form(origv2)]),tree_form(origv2) ,g]), lambda x: simplify(trig4(zu_simplify(x))))
+    return dowhile(TreeNode("f_subs", [TreeNode("f_integrate", [simplify(equation), tree_form(origv2)]),tree_form(origv2) ,g]), lambda x: simplify(trig4(trig0(x))))
 def integrate_subs_main_helper(equation):
     eq2 = equation
     if eq2.name == "f_integrate":
