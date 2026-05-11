@@ -168,6 +168,8 @@ def rationalize_sqrt(eq):
 def factorconst(eq):
     return simplify(_factorconst(eq))
 def factor_helper(equation, complexnum):
+    if any(contain2(equation, "f_"+item) for item in "eq lt le ge gt".split(" ")):
+        return equation
     for r in vlist(equation):
         lst = poly(equation, r)
         if lst is not None and len(lst)==3:
@@ -177,8 +179,9 @@ def factor_helper(equation, complexnum):
             x1 = simplify(fraction(simplify(x1)))
             x2 = simplify(fraction(simplify(x2)))
             eq2 = a*(tree_form(r)-x1)*(tree_form(r)-x2)
+            eq2 = simplify(eq2)
             if complexnum or (not complexnum and not contain(eq2, tree_form("s_i"))):
-                return simplify(eq2)
+                return eq2
     return equation
 def factor2(eq, complexnum=False):
     out = transform_dfs(simplify(eq), factor_helper, [complexnum])

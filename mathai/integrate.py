@@ -414,8 +414,7 @@ def integrate_formula_h(equation):
             return wrt**2/2
         if not contain(integrand, wrt):
             if extra is not None:
-                return conv_int2(integrand*wrt, wrt, extra[0], extra[1])
-            
+                return conv_int2(integrand*wrt, wrt, extra[0], extra[1])            
             return integrand*wrt
         out = transform_formula(simplify(integrand), wrt.name, formula_gen[0], formula_gen[1], formula_gen[2])
         if out is not None:
@@ -573,8 +572,8 @@ def integrate_definite(eq):
     return TreeNode(eq.name, [integrate_definite(child) for child in eq.children])
 def normalize(x, f=True):
     x = simplify(x)
-    x = factor2(x)    
-    x = trig4(x)
+    x = integrate_summation(x)
+    x = factor2(x)
     if f:
         x = dowhile(x, lambda y: fraction(simplify(integrate_formula(rm_const(integrate_summation(y))))))
     else:
@@ -595,9 +594,10 @@ def integrate_full(root):
     log = []
     orig = copy.deepcopy(root)
     eq = root
-    for item in [[lambda x: x], [factor2, apart, normalize2, normalize], [trig1, normalize2],\
+    for item in [[lambda x: x, simplify, expand, normalize], [factor2, apart, normalize2, normalize], [trig1, normalize2],\
                  [factor1, normalize, trig6, normalize, expand, normalize, integrate_subs_main, normalize, factor2, simplify, apart, normalize2],\
                  [normalize, integrate_subs_main, normalize2, expand, normalize, byparts, normalize]]:
+
         for item2 in item:
             eq = item2(eq)
             if eq not in log:

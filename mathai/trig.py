@@ -427,7 +427,7 @@ def trig5(eq):
         if done:
             break
     for item in d.keys():
-        tmp = structure(copy.deepcopy(item),parse("1+sin(A)"), parse("A"), True, "")
+        tmp = structure(copy.deepcopy(item),parse("1+sin(A)"), parse("A"), [], "")
         if tmp is None:
             continue
         tmp1 = parse("1")-tmp.fx("sin")
@@ -437,7 +437,7 @@ def trig5(eq):
         d[tmp2] += 1
         break
     for item in d.keys():
-        tmp = structure(copy.deepcopy(item),parse("1+cos(A)"), parse("A"), True, "")
+        tmp = structure(copy.deepcopy(item),parse("1+cos(A)"), parse("A"), [], "")
         if tmp is None:
             continue
         tmp1 = parse("1")-tmp.fx("cos")

@@ -48,7 +48,11 @@ def helper(eq):
             return d/(tree_form("d_1")+eq.children[0].children[0]*eq.children[0].children[0])
     return eq
 def diff3(eq):
+    if eq is None:
+        return None
     eq = simplify(eq)
+    if eq is None:
+        return None
     stack = [(eq, False)]
     out = {}
     while stack:
@@ -65,6 +69,8 @@ def diff3(eq):
         out[node] = rebuilt
     return out[eq]
 def diff2(eq):
+    if eq is None:
+        return None
     return dowhile(eq, diff3)
 def diff(equation, var="v_0"):
     def diffeq(eq):

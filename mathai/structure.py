@@ -2,7 +2,7 @@ import itertools
 from .diff import diff, diff2
 from .simplify import simplify
 from .base import *
-def structure(equation, formula, formula_out=None, only_const=False, wrt=None):
+def structure(equation, formula, formula_out=None, only_const=[], wrt=None):
     varlist = {}
     def helper(equation, formula):
         nonlocal varlist
@@ -60,13 +60,13 @@ def structure(equation, formula, formula_out=None, only_const=False, wrt=None):
         varlist = {}
         if helper(equation, item):
             if not all(tree_form(key) not in only_const or\
-                       (not contain(diff(varlist[key], wrt), tree_form(wrt)) and contain(varlist[key], tree_form(wrt))) for key in varlist.keys()):
+                       (not contain(diff(conversionrev(varlist[key]), wrt), tree_form(wrt)) and contain(varlist[key], tree_form(wrt))) for key in varlist.keys()):
                 continue
             if formula_out is None:
                 return varlist
             for key in varlist.keys():
                 formula_out = replace(formula_out, tree_form(key), varlist[key])
-            return conversionrev(formula_out)
+            return simplify(conversionrev(formula_out))
     return None
 def transform_formula(equation, wrt, formula_list, var, expr):
     var2 = str(tree_form(wrt))
