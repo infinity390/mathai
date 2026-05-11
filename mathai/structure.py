@@ -1,4 +1,5 @@
 import itertools
+from .diff import diff, diff2
 from .simplify import simplify
 from .base import *
 def structure(equation, formula, formula_out=None, only_const=False, wrt=None):
@@ -58,7 +59,8 @@ def structure(equation, formula, formula_out=None, only_const=False, wrt=None):
     for item in lst(formula):
         varlist = {}
         if helper(equation, item):
-            if only_const and any(contain(varlist[key], tree_form(wrt)) for key in varlist.keys()):
+            if not all(tree_form(key) not in only_const or\
+                       (not contain(diff(varlist[key], wrt), tree_form(wrt)) and contain(varlist[key], tree_form(wrt))) for key in varlist.keys()):
                 continue
             if formula_out is None:
                 return varlist
@@ -70,27 +72,9 @@ def transform_formula(equation, wrt, formula_list, var, expr):
     var2 = str(tree_form(wrt))
     if var != var2:
         formula_list =  [[replace(y, tree_form("v_0"), tree_form(wrt)) for y in x] for x in formula_list]
-        expr = [[replace(item, tree_form("v_0"), tree_form(wrt)) for item in item2] for item2 in expr]
+        expr = [replace(item, tree_form("v_0"), tree_form(wrt)) for item in expr]
     for item in formula_list:
-        item = list(item)
-        orig = copy.deepcopy(item)
-        for item2 in itertools.product(*expr):
-            for i in range(2):
-                for j in range(len(expr)):
-                    item[i] = replace(item[i], expr[j][0], item2[j])
-            for i in range(2):
-                item[i] = simplify(item[i])
-            out = None
-            p = False
-            if var != "":
-                p = True
-            try:
-                out = structure(equation.copy_tree(), copy.deepcopy(item[0]), copy.deepcopy(item[1]), p, wrt)
-                if out is not None:
-                    out = simplify(out)
-            except:
-                out = None
-            if out is not None:
-                return out
-            item = copy.deepcopy(orig)
+        out = structure(equation.copy_tree(), copy.deepcopy(item[0]), copy.deepcopy(item[1]), expr, wrt)
+        if out is not None:
+            return simplify(diff2(out))
     return None

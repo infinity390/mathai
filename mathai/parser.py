@@ -61,7 +61,7 @@ grammar = """
 
 FUNC_NAME: "midpoint" | "ref" | "expect" | "U" | "zu" | "P" | "Q" | "covariance" | "variance" | "subs" | "try" | "limit" | "forall" | "limitninf" | "limitpinf" | "imply" | "exist" | "len" | "sum" | "angle" | "line" | "sum2" | "charge" | "electricfield" | "perm" | "point" | "equationrhs" | "transpose" | "equationlhs" | "equation" | "error" | "covariance" | "variance" | "expect" | "mag" | "rad" | "laplace" | "diverge" | "pdif" | "gradient" | "curl" | "point1" | "point2" | "dot" | "point3" | "line1" | "line2" | "line3" | "sin" | "circumcenter" | "eqtri" | "linesegment" | "cos" | "tan" | "log" | "sqrt" | "zu" | "integrate" | "dif" | "abs" | "cosec" | "sec" | "cot" | "arctan" | "arcsin" | "arccot" | "arccos" | "log10"
 
-VARIABLE: /[a-z]/ | "nabla" | "pi" | "kc" | "hbar" | "em" | "ec" | "anot" | "false" | "true"
+VARIABLE: /[a-z]/ | "pi" | "inf" | "false" | "true"
 
 CAPITAL_ID: /[A-Z]/
 
@@ -121,7 +121,7 @@ def parse(equation, funclist=None):
             [fxchange(child) for child in tree_node.children]
         )
     tree_node = fxchange(tree_node)
-    for const in ["e","pi","kc","em","ec","anot","hbar","false","true","i","nabla"]:
+    for const in ["e","pi","inf","false","true","i"]:
         tree_node = replace(tree_node, tree_form("d_"+const), tree_form("s_"+const))
     for i, c in enumerate(["x","y","z"] + [chr(x+ord("a")) for x in range(0,23)]):
         tree_node = replace(tree_node, tree_form("d_"+c), tree_form("v_"+str(i)))

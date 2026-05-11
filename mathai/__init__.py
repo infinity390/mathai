@@ -16,22 +16,23 @@ from .simplify import simplify, other_node, multiply_node, addition_node
 from .integrate import integrate_subs_main as integrate_subs
 from .integrate import byparts as integrate_byparts
 from .integrate import sqint as integrate_fraction
-from .integrate import integrate_summation
+from .integrate import integrate_summation, conv_int
 from .integrate import rm_const as integrate_const
 from .integrate import solve_integrate as integrate_clean
 from .integrate import integrate_formula, integrate_full, integrate_definite
+from .integrate import normalize as integration_basic
 
 from .diff import diff, diff2
 
 from .factor import factor as factor1
-from .factor import factor2, factor3, take_common
+from .factor import factor2, take_common
 from .factor import rationalize_sqrt as rationalize
 from .factor import merge_sqrt
 from .factor import factorconst as factor0
 
 from .fraction import fraction
 
-from .inverse import inverse
+from .inverse import inverse, inverse2
 
 from .logic import logic0, set_sub, truth_gen, logic4, logic3, distribute
 

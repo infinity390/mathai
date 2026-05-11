@@ -39,6 +39,8 @@ def abstractexpr3(eq):
         ):
             return simplify(-eq, False).fx("neg")
     return eq
+def print_raw(eq):
+    print(string_equation(str_form(eq)))
 def printeq_str(eq):
     if eq is None:
         return None

@@ -1,4 +1,4 @@
-from .inverse import inverse2
+from .inverse import inverse, inverse2
 from .integrate import integrate_full
 from .ode import diffsolve as ode_solve
 from .parser import parse
@@ -14,148 +14,151 @@ from .logic import logic0, set_sub, truth_gen, distribute
 from .factor import factor2, factor
 from .limit import limit1, limit5
 from .linear import linear_solve
-
-def two_eq_handle(eq):
-
+def two_eq_handle2(eq):
     eq = flatten_tree(eq)
     orig = eq
-
     if eq.name != "f_and":
         return orig
-
     vars_ = vlist(eq)
-
     if len(vars_) < 2 or len(eq.children) < 2:
         return orig
-
     eq = simplify(eq)
-
-    # ============================================
-    # PURE LINEAR SYSTEM
-    # ============================================
-
-    if (
-        all(item.name == "f_eq" for item in eq.children)
-        and
-        all(
-            all("v_" not in str_form(diff(item.children[0], v))
-                for v in vars_)
-            for item in eq.children
-        )
-    ):
-        out = linear_solve(eq)
-        if out is not None:
-            return out
-
-    # ============================================
-    # GENERAL TWO-EQUATION ELIMINATION
-    # ============================================
-
     n = len(eq.children)
-
     for i in range(n):
-
         for j in range(i + 1, n):
-
             a = copy.deepcopy(eq.children[i])
             b = copy.deepcopy(eq.children[j])
-
             if a.name != "f_eq" or b.name != "f_eq":
                 continue
-
-            a_expr = a.children[0]
-            b_expr = b.children[0]
-
-            # ------------------------------------
-            # TRY EACH VARIABLE
-            # ------------------------------------
-
             for v in vars_:
-
-                inv = inverse2(copy.deepcopy(a), v)
-                
+                inv = inverse2(
+                    copy.deepcopy(a),
+                    v
+                )
                 if inv is None:
                     continue
-
-                branches = []
-
-                # --------------------------------
-                # NORMALIZE OR BRANCHES
-                # --------------------------------
-
-                if inv.name == "f_or":
-                    branches = inv.children
-                else:
-                    branches = [inv]
-
-                out = []
-
-                # --------------------------------
-                # PROCESS EACH BRANCH
-                # --------------------------------
-
+                branches = (
+                    inv.children
+                    if inv.name == "f_or"
+                    else [inv]
+                )
+                out_branches = []
                 for branch in branches:
-                    if (
-                        branch.name != "f_eq"
-                        or branch.children[0] != tree_form(v)
-                    ):
+                    substitutions = []
+                    def collect(node):
+                        if node.name == "f_eq":
+                            lhs = node.children[0]
+                            rhs = node.children[1]
+                            if lhs == tree_form(v):
+                                substitutions.append((lhs, rhs))
+                            elif rhs == tree_form(v):
+                                substitutions.append((rhs, lhs))
+                        elif node.name == "f_and":
+                            for child in node.children:
+                                collect(child)
+                    collect(branch)
+                    if substitutions == []:
                         continue
-
-                    replacement = branch.children[1]
-
-                    reduced = replace(
-                        copy.deepcopy(b_expr),
-                        tree_form(v),
-                        replacement
+                    reduced = copy.deepcopy(b.children[0])
+                    for lhs, rhs in substitutions:
+                        reduced = replace(
+                            reduced,
+                            lhs,
+                            rhs
+                        )
+                    reduced = simplify(
+                        zu_simplify(reduced)
                     )
-
-                    reduced = zu_simplify(reduced)
-
                     new_eq = TreeNode(
                         "f_eq",
-                        [reduced, tree_form("d_0")]
-                    )
-
-                    pair = TreeNode(
-                        "f_and",
                         [
-                            branch,
-                            new_eq
+                            reduced,
+                            tree_form("d_0")
                         ]
                     )
-
-                    out.append(pair)
-
-                if out == []:
+                    if branch.name == "f_and":
+                        pair = TreeNode(
+                            "f_and",
+                            branch.children + [new_eq]
+                        )
+                    else:
+                        pair = TreeNode(
+                            "f_and",
+                            [
+                                branch,
+                                new_eq
+                            ]
+                        )
+                    out_branches.append(pair)
+                if out_branches == []:
                     continue
-
                 result = (
-                    out[0]
-                    if len(out) == 1
-                    else TreeNode("f_or", out)
+                    out_branches[0]
+                    if len(out_branches) == 1
+                    else TreeNode(
+                        "f_or",
+                        out_branches
+                    )
                 )
-
-                # --------------------------------
-                # APPEND REMAINING EQUATIONS
-                # --------------------------------
-
                 remaining = (
                     eq.children[:i]
                     + eq.children[i+1:j]
                     + eq.children[j+1:]
                 )
-
                 if remaining:
-
                     result = TreeNode(
                         "f_and",
                         [result] + remaining
                     )
-
                 return flatten_tree(
                     expand(result, "f_or", "f_and")
                 )
-
+    return orig
+def two_eq_handle(eq):
+    eq2 = trig0(eq)
+    if contain2(eq2, "f_sin") or contain2(eq2, "f_cos"):
+        return two_eq_handle2(eq)
+    eq = flatten_tree(eq)
+    orig = eq
+    if eq.name == "f_and":
+        out = vlist(eq)
+        eq = simplify(eq)
+        if out == []:
+            pass
+        elif all(item.name == "f_eq" for item in eq.children) and all(all("v_" not in str_form(diff(item.children[0],v)) for v in out) for item in eq.children):
+            eq = linear_solve(eq)
+            return eq
+        elif len(eq.children) >= 2 and len(out) >= 2:
+            for i in range(len(eq.children)):
+                for j in range(len(eq.children)):
+                    if i >= j:
+                        continue
+                    a, b = copy.deepcopy((eq.children[i], eq.children[j]))
+                    if a.name != "f_eq" or b.name != "f_eq":
+                        continue
+                    a_expr = a.children[0]
+                    b_expr = b.children[0]
+                    result = tree_form("s_false")
+                    for v1, v2 in [(out[0], out[1]), (out[1], out[0])]:
+                        inv = inverse(copy.deepcopy(a_expr), v1)
+                        if inv is None:
+                            continue
+                        reduced = replace(copy.deepcopy(b_expr), tree_form(v1), inv)
+                        reduced = simplify(reduced)
+                        pair = (
+                            TreeNode("f_eq", [tree_form(v1), inv]) &
+                            TreeNode("f_eq", [reduced, tree_form("d_0")])
+                        )
+                        if result.name == "s_false":
+                            result = pair
+                        else:
+                            result = result | pair
+                    tmp = TreeNode(eq.name, eq.children[:i]+eq.children[i+1:j]+eq.children[j+1:])
+                    if len(tmp.children) == 1:
+                        tmp = tmp.children[0]
+                    if len(tmp.children) == 0:
+                        return flatten_tree(distribute(result, "or_over_and"))
+                    return flatten_tree(distribute(result, "or_over_and")&tmp)
     return orig
 def god(string):
     print(f"? {string}")

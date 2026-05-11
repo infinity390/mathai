@@ -21,6 +21,31 @@ def transform_dfs(root, func, arg=[]):
             new_node = func(*([node]+arg))
             result_map[original] = new_node
     return result_map[root]
+def transform_dfs_parent(root, func, parent, arg=[]):
+    if root is None:
+        return None
+    stack = [(root, parent, False)]
+    result_map = {}
+    while stack:
+        node, parent, visited = stack.pop()
+        if node is None:
+            continue
+        if not visited:
+            stack.append((node, parent, True))
+            if hasattr(node, "children") and node.children:
+                for child in reversed(node.children):
+                    stack.append((child, node, False))
+        else:
+            original = node
+            if hasattr(node, "children") and node.children:
+                new_children = [
+                    result_map[child]
+                    for child in node.children
+                ]
+                node = TreeNode(node.name, new_children)
+            new_node = func(*([node, parent]+arg))
+            result_map[original] = new_node
+    return result_map[root]
 def partitions(lst):
     res = set()
     n = len(lst)
@@ -345,21 +370,23 @@ def compute(eq):
     else:
         return None
 def num_dem(equation):
-    num = tree_form("d_1")
-    den = tree_form("d_1")
+    num = []
+    den = []
     for item in factor_generation(equation):
         if item.name == "f_pow":
             c = frac(item.children[1])
             if c is not None and c < 0:
                 t = frac_to_tree(-c)
                 if t == tree_form("d_1"):
-                    den = den * item.children[0]
+                    den.append(item.children[0])
                 else:
-                    den = den * item.children[0]**t
+                    den.append(item.children[0]**t)
             else:
-                den = den * item**-1
+                den.append(item**-1)
         else:
-            num = num*item
+            num.append(item)
+    num = product([item for item in num if item != 1])
+    den = product([item for item in den if item != 1])
     return num, den
 def or_all(lst):
     lst = [item for item in lst if item != tree_form("s_false")]

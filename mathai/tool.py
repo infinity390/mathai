@@ -114,7 +114,7 @@ def poly(eq, to_compute, m=10):
     out = []
     eq2 = eq
     for i in range(m):
-        out.append(expand(simplify(eq2)))
+        out.append(simplify(expand(simplify(eq2))))
         eq2 = diff(out[-1], to_compute)
     for i in range(len(out)-1,-1,-1):
         if out[i] == tree_form("d_0"):
@@ -124,4 +124,4 @@ def poly(eq, to_compute, m=10):
     final = []
     for index, item in enumerate(out):
         final.append(substitute_val(item, 0, to_compute)/tree_form("d_"+str(math.factorial(index))))
-    return [expand(simplify(item)) for item in final][::-1]
+    return [simplify(expand(simplify(item))) for item in final][::-1]
