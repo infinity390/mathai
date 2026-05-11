@@ -1,6 +1,73 @@
 from .expand import expand
 import itertools
 from .base import *
+from .fraction import fraction
+from .simplify import simplify
+from .expand import expand
+from .factor import factorconst
+def helper2(eq):
+    if eq.name in ["f_forall", "f_exist"]:
+        return False
+    if eq.name in ["f_and", "f_not", "f_or", "f_equiv", "f_imply"]:
+        return True
+    return any(helper2(child) for child in eq.children)
+def helper(eq):
+    op_dic = {"le":"ge","ge":"le","gt":"lt","lt":"gt","eq":"eq"}
+    out2 = []
+    eq = simplify(eq)
+    logic00 = lambda x: dowhile(x,logic0)
+    simp = lambda y: simplify(factorconst(dowhile(y, fraction)))
+    simp2 = simp
+    def canon(eq):
+        if eq.name[2:] in "eq ge gt le lt".split(" "):
+            eq1 = simplify(TreeNode("f_"+op_dic[eq.name[2:]], [simp2(-eq.children[0]), tree_form("d_0")]))
+            eq2 = simplify(TreeNode(eq.name, [simp2(eq.children[0]), tree_form("d_0")]))
+            if eq1 == eq2:
+                return eq1
+            elif str_form(eq1.children[0]) < str_form(eq2.children[0]):
+                return eq2
+            else:
+                return eq1
+        return TreeNode(eq.name, [canon(child) for child in eq.children])
+    def prepare2(eq):
+        nonlocal out2
+        if eq.name[2:] in "eq ge gt le lt".split(" "):
+            if eq not in out2:
+                out2.append(eq)
+                return
+        if not helper2(eq):
+            out2.append(eq)
+            return
+        for child in eq.children:
+            prepare2(child)
+    eq = simp(eq)
+    eq = canon(eq)
+    eq = logic00(eq)
+    prepare2(eq)
+    dic = {}
+    v = ["v_"+str(i) for i in range(26) if "v_"+str(i) not in vlist(eq)]
+    for key in out2:
+      if key not in dic.keys():
+          dic[key] = tree_form(v.pop(0))
+      eq = replace(eq,key,dic[key])
+    eq = truth_gen(eq)
+    if eq.name in ["s_true", "s_false"]:
+        return eq
+    eq = logic4(eq)
+    for key in dic.keys():
+      eq = replace(eq,dic[key],key)
+    return eq
+def solve_logically2(eq):
+    if eq.name in ["f_forall", "f_exist"]:
+        s = str_form(eq.children[1])
+        if "f_forall" not in s and "f_exist" not in s :
+            return TreeNode(eq.name, [eq.children[0], helper(eq.children[1])])
+        else:
+            return TreeNode(eq.name, [eq.children[0], solve_logically2(helper(eq.children[1]))])
+    return TreeNode(eq.name, [solve_logically2(child) for child in eq.children])
+def solve_logically(eq):
+    eq2 = helper(eq)
+    return solve_logically2(eq2)
 def set_sub(eq):
   if eq.name == "f_sub":
     return eq.children[0] & eq.children[1].fx("not")
@@ -78,7 +145,6 @@ def truth_gen(eq):
      else:
           outeq = TreeNode("f_or", outeq)
      return outeq
-
 def logic0(eq):
     if eq.children is None or len(eq.children) == 0:
         return eq
@@ -261,59 +327,3 @@ def logic4(expr: TreeNode) -> TreeNode:
     tree = bdd_to_tree(bdd)
     tree = dowhile(tree, simplify_tree)
     return tree
-import itertools
-
-def distribute(eq, mode="and_over_or"):
-
-    def flatten(node):
-        if node.name in ["f_and", "f_or"]:
-            new_children = []
-            for c in node.children:
-                if c.name == node.name:
-                    new_children.extend(c.children)
-                else:
-                    new_children.append(c)
-            node.children = new_children
-        return node
-
-    def dist(node):
-        if not node.children:
-            return node
-
-        children = [dist(c) for c in node.children]
-        node = TreeNode(node.name, children)
-        node = flatten(node)
-
-        # ---- AND over OR ----
-        if mode == "and_over_or" and node.name == "f_and":
-            groups = []
-            for c in node.children:
-                if c.name == "f_or":
-                    groups.append(c.children)
-                else:
-                    groups.append([c])
-
-            terms = []
-            for combo in itertools.product(*groups):
-                terms.append(TreeNode("f_and", list(combo)))
-
-            return TreeNode("f_or", terms)
-
-        # ---- OR over AND ----
-        if mode == "or_over_and" and node.name == "f_or":
-            groups = []
-            for c in node.children:
-                if c.name == "f_and":
-                    groups.append(c.children)
-                else:
-                    groups.append([c])
-
-            terms = []
-            for combo in itertools.product(*groups):
-                terms.append(TreeNode("f_or", list(combo)))
-
-            return TreeNode("f_and", terms)
-
-        return node
-
-    return logic0(dist(eq))

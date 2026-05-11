@@ -7,10 +7,9 @@ from .base import *
 from .diff import diff
 from .trig import trig0, trig1, zu_simplify
 from .univariate_inequality import simple_wavycurvy, wavycurvy, prepare, absolute, handle_sqrt, eq2range, domain
-from .bivariate_inequality import solve_logically
 from .fraction import fraction
 from .expand import expand
-from .logic import logic0, set_sub, truth_gen, distribute
+from .logic import logic0, set_sub, truth_gen, solve_logically
 from .factor import factor2, factor
 from .limit import limit1, limit5
 from .linear import linear_solve
@@ -157,8 +156,8 @@ def two_eq_handle(eq):
                     if len(tmp.children) == 1:
                         tmp = tmp.children[0]
                     if len(tmp.children) == 0:
-                        return flatten_tree(distribute(result, "or_over_and"))
-                    return flatten_tree(distribute(result, "or_over_and")&tmp)
+                        return flatten_tree(expand(result, "f_or", "f_and"))
+                    return flatten_tree(expand(result, "f_or", "f_and")&tmp)
     return orig
 def god(string):
     print(f"? {string}")

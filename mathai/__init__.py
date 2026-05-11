@@ -34,14 +34,13 @@ from .fraction import fraction
 
 from .inverse import inverse, inverse2
 
-from .logic import logic0, set_sub, truth_gen, logic4, logic3, distribute
+from .logic import logic0, set_sub, truth_gen, logic4, logic3, solve_logically
 
 from .apart import apart, apart2
 
 from .limit import limit1, limit2, limit0, limit3, limit4
 
 from .univariate_inequality import wavycurvy, absolute, domain, handle_sqrt, prepare, eq2range, range2eq2, simple_wavycurvy
-from .bivariate_inequality import solve_logically
 
 from .matrix import matrix_solve
 
@@ -49,6 +48,7 @@ from .base import *
 from .printeq import printeq_obj
 
 TreeNode.__repr__ = printeq_obj
+
 from .tool import enclose_const
 from .tool import poly_simplify
 from .tool import longdiv, poly
