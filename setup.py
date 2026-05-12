@@ -3,7 +3,7 @@ from pathlib import Path
 
 setup(
     name="mathai",
-    version="1.4.9",
+    version="1.5.0",
     description="Mathematics solving Ai tailored to NCERT",
     long_description=Path("README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",

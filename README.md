@@ -158,7 +158,147 @@ print(compute(result /e1))
 -13.605693122882867
 ```
 
-#### Example Demonstration 2 (boolean algebra)
+#### Example Demonstration 2 (derivation of helium atom's ground state energy in electron volts using the variational principle in quantum physics)
+```python
+from mathai import *
+basic_int = lambda x: dowhile(x, lambda y: fraction(simplify(integrate_formula(integrate_const(integrate_summation(y))))))
+algebra = lambda x: dowhile(x, lambda y: fraction(simplify(y)))
+a0 = simplify(parse("529177210903 * 10^(-23)"))
+e0 = simplify(parse("88541878128 * 10^(-22)"))
+m = simplify(parse("9109383701 * 10^(-40)"))
+e1 = simplify(parse("1602176634 * 10^(-28)"))
+hbar = simplify(parse("1054571817 * 10^(-43)"))
+pi = tree_form("s_pi")
+euler = tree_form("s_e")
+hydro = -(e1 ** 2)/(4*pi*e0) * (1/(2*a0))
+k = -(e1 ** 2)/(4*pi*e0)
+Z = parse("a")
+r1 = parse("b")
+r2 = parse("c")
+phi1 = parse("d")
+phi2 = parse("f")
+theta1 = parse("g")
+theta2 = parse("h")
+def psi(r1, r2):
+    global a0, pi, euler, Z
+    two = tree_form("d_2")
+    return (Z**3 / (pi * a0**3)) * euler**(-Z * (r1 + r2) / a0)
+def r12(r1, r2, theta1, theta2, phi1, phi2):
+    return TreeNode("f_max", [r1, r2])
+f = psi(r1, r2)
+def pdif(eq, wrt):
+  return diff(eq, wrt.name)
+def laplacian_r1(f):
+    global r1, theta1, phi1
+    term_r = (1/r1**2) * pdif(r1**2 * pdif(f, r1), r1)
+    term_theta = (1/(r1**2 * theta1.fx("sin"))) * pdif(
+        theta1.fx("sin") * pdif(f, theta1),
+        theta1
+    )
+    term_phi = (1/(r1**2 * theta1.fx("sin")**2)) * pdif(
+        pdif(f, phi1),
+        phi1
+    )
+    return simplify(term_r + term_theta + term_phi)
+def laplacian_r2(f):
+    global r2, theta2, phi2
+    term_r = (1/r2**2) * pdif(r2**2 * pdif(f, r2), r2)
+    term_theta = (1/(r2**2 * theta2.fx("sin"))) * pdif(
+        theta2.fx("sin") * pdif(f, theta2),
+        theta2
+    )
+    term_phi = (1/(r2**2 * theta2.fx("sin")**2)) * pdif(
+        pdif(f, phi2),
+        phi2
+    )
+    return simplify(term_r + term_theta + term_phi)
+def integrate_exec(eq, wrt, a, b):
+  eq = simplify(eq)
+  orig = eq
+  eq = TreeNode("f_integrate", [eq, wrt])
+  eq = integration_basic(eq)
+  eq = simplify(expand(eq))
+  eq = integration_basic(eq)
+  eq = simplify(fraction(eq))
+  eq_a = TreeNode("f_limit", [replace(eq, wrt, wrt+a), wrt])
+  eq_a = limit1(eq_a)
+  eq_b = None
+  if b == tree_form("s_inf"):
+      eq = algebra(eq)
+      eq = simplify(expand(eq))
+      eq_b = TreeNode("f_limitpinf", [eq, wrt])
+      eq_b = dowhile(eq_b, lambda x: expand(limit0(limit2(limit3(simplify(x))))))
+  else:
+      eq_b = TreeNode("f_limit", [replace(copy.deepcopy(eq), wrt, wrt+b), wrt])
+      eq_b = limit1(eq_b)
+  out = algebra(eq_b - eq_a)
+  return out
+def integrate_function(func, r, theta, phi):
+    phi_part = integrate_exec(
+        func,
+        phi,
+        parse("0"),
+        parse("2*pi")
+    )
+    theta_part = integrate_exec(
+        phi_part * theta.fx("sin"),
+        theta,
+        parse("0"),
+        parse("pi")
+    )
+
+    r_part = integrate_exec(
+        theta_part * r**2,
+        r,
+        parse("0"),
+        tree_form("s_inf")
+    )
+    return r_part
+H1 = f * (-hbar**2 / (2*m) * laplacian_r1(f))
+php1_1 = integrate_function(H1, r1, theta1, phi1)
+php1 = integrate_function(php1_1, r2, theta2, phi2)
+H2 = f * (-hbar**2 / (2*m) * laplacian_r2(f))
+php2_1 = integrate_function(H2, r1, theta1, phi1)
+php2 = integrate_function(php2_1, r2, theta2, phi2)
+php3 = k * (Z/r1 + Z/r2) - k * ((Z-2)/r1 + (Z-2)/r2)
+php4_1 = integrate_function(f**2 * php3, r1, theta1, phi1)
+php4 = integrate_function(php4_1, r2, theta2, phi2)
+H3 = algebra(php1 + php2 + php4)
+php_int = TreeNode("f_integrate", [-k * psi(r1, r2)**2 * 1/r12(r1, r2, theta1, theta2, phi1, phi2) * theta2.fx("sin") * r2**2 * theta1.fx("sin") * r1**2, theta2])
+php_int = algebra(php_int)
+php_int = basic_int(php_int)
+php_int = integrate_subs(php_int)
+php_int = basic_int(php_int)
+php_int = integrate_clean(php_int)
+php_int_a = limit1(TreeNode("f_limit", [php_int, theta2]))
+php_int_b = replace(php_int, theta2, theta2+parse("pi"))
+php_int_b = limit1(TreeNode("f_limit", [php_int_b, theta2]))
+php_int = algebra(php_int_b - php_int_a)
+php_int = simplify(expand(php_int))
+php_int = TreeNode("f_integrate", [php_int, r2, tree_form("d_0"), tree_form("s_inf")])
+php_int = algebra(php_int)
+php_int = basic_int(php_int)
+php_int = factor2(php_int)
+php_int = integrate_definite(php_int)
+php_int = simplify(expand(php_int))
+php_int = integration_basic(php_int)
+php_int = dowhile(php_int, lambda x: limit3(simplify(limit2(limit0(limit1(x))))))
+phpd = integrate_exec(php_int, theta1, parse("0"), parse("pi"))
+phpd = algebra(phpd)
+phpd = integrate_exec(phpd, r1, parse("0"), parse("inf")) * parse("2*pi*2*pi")
+H = algebra(H3 + phpd)
+dh = diff(H, Z.name)
+hs = inverse(dh, Z.name)
+H = replace(H, Z, hs)
+print(compute(H/e1))
+```
+#### Output
+
+```
+-77.48867420464015
+```
+
+#### Example Demonstration 3 (boolean algebra)
 ```python
 from mathai import *
 eq = parse("(A-B)|(B-A)")
@@ -177,7 +317,7 @@ print(eq)
 (~A&B)|(~B&A)
 ```
 
-#### Example Demonstration 3 (limits approaching to a constant value)
+#### Example Demonstration 4 (limits approaching to a constant value)
 ```python
 from mathai import *
 limits = ["(e^(tan(x)) - 1 - tan(x)) / x^2", "sin(x)/x", "(1-cos(x))/x^2", "(sin(x)-x)/sin(x)^3"]
@@ -195,7 +335,7 @@ for q in limits:
 -(1/6)
 ```
 
-#### Example Demonstration 4 (limits approaching to infinity)
+#### Example Demonstration 5 (limits approaching to infinity)
 ```python
 from mathai import *
 eq= parse("limitpinf((3*x^2+x)/(2*x^2+5),x)")
@@ -212,7 +352,7 @@ print(eq)
 3/2
 ```
 
-#### Example Demonstration 5 (linear equations) (general solution of linear equations in two variables)
+#### Example Demonstration 6 (linear equations) (general solution of linear equations in two variables)
 ```python
 from mathai import *
 eq= parse("a*x+b*y+c = 0 & d*x+f*y+g = 0")
@@ -230,7 +370,7 @@ for item in eq.children:
 ((((a*g)-(c*d))/((a*f)-(b*d)))+y)=0
 ```
 
-#### Example Demonstration 6 (expectation algebra)
+#### Example Demonstration 7 (expectation algebra)
 ```python
 from mathai import *
 eq = simplify(parse("covariance(A+B,C+D)=covariance(B,C)+covariance(B,D)+covariance(A,D)+covariance(A,C)"))

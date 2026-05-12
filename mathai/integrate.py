@@ -28,7 +28,6 @@ def integrate_summation_h(equation):
 def integrate_summation(equation):
     out = transform_dfs(equation, integrate_summation_h, [])
     return out
-
 def subs_heuristic(eq, var):
     output = []
     last = []
@@ -59,7 +58,6 @@ def subs_heuristic(eq, var):
         for child in eq.children:
             collect3(child)  
     collect2(eq)
-    
     if output == []:
         collect3(eq)
     tmp = list(set([simplify(tree_form(x)) for x in output]))
@@ -67,7 +65,6 @@ def subs_heuristic(eq, var):
     poly_term = None
     term_degree = 20
     output = []
-    
     for item in tmp:
         n = poly(simplify(item), var.name)
         if n is None:
@@ -356,10 +353,8 @@ def integration_formula_init():
         (f"cos(A)", f"sin(A)/pdif(A,{var})"),
         (f"1/A", f"log(abs(A))/pdif(A,{var})"),
         (f"e^A", f"e^A/pdif(A,{var})"),
-        
         (f"({var}*e^A)",f"(({var}/pdif(A,{var})) - (1/(pdif(A,{var})^2)))*e^A"),
         (f"(({var})^2*e^A)",f"((({var})^2/pdif(A,{var})) - (2*{var}/(pdif(A,{var})^2)) + (2/(pdif(A,{var})^3)))*e^A"),
-        
         (f"1/cos(A)", f"log(abs((1+sin(A))/cos(A)))/pdif(A,{var})"),
         (f"1/cos(A)^2", f"tan(A)/pdif(A,{var})"),
         (f"1/sin(A)^2", f"-cot(A)/pdif(A,{var})"),
@@ -369,7 +364,6 @@ def integration_formula_init():
     formula_list = [[simplify(parse(y)) for y in x] for x in formula_list]
     expr = [parse("A")]
     return [formula_list, var, expr]
-
 formula_gen = integration_formula_init()
 def rm_const_h(equation):
     if equation is None:
@@ -477,6 +471,15 @@ def def_int_h(eq, start, end, wrt, root):
             eqn2 = TreeNode("f_subs", [eqn, wrt, inq.r[3]]) - TreeNode("f_subs", [eqn, wrt, inq.r[1]])
             lst.append(eqn2)
         return simplify(summation(lst))
+    elif eq.name == "f_max" and len(eq.children) == 2:
+        if len(vlist(eq)) == 2:
+            if eq.children[0].name.startswith("v_") and eq.children[1].name.startswith("v_"):
+                if start != tree_form("d_0") or end != tree_form("s_inf"):
+                    return None
+                var = tree_form(list(set(vlist(eq))-set([wrt.name]))[0])
+                a = replace(copy.deepcopy(root), eq, var)
+                b = replace(copy.deepcopy(root), eq, wrt)
+                return TreeNode("f_integrate", [a.children[0],wrt,start,var])+TreeNode("f_integrate", [b.children[0],wrt,var, end])
     elif eq.name == "f_abs":
         if len(vlist(eq)) == 1:
             lst = []
@@ -541,7 +544,6 @@ def conv_int2(eq, wrt, start, end):
             lst.append(TreeNode("f_limit", [replace(copy.deepcopy(eq), wrt, wrt+item), wrt]))
     return lst[1]-lst[0]
 def conv_int_h(eq):
-    
     if (eq.name == "f_integrate" and len(eq.children) == 4):
         lst = []
         for item in [eq.children[2], eq.children[3]]:
@@ -563,7 +565,6 @@ def def_int(eq, start, end, wrt, root):
         if out is not None:
             return out
     return None
-
 def integrate_definite(eq):
     if eq.name == "f_integrate" and len(eq.children) == 4:
         out = def_int(eq.children[0], eq.children[2], eq.children[3], eq.children[1], eq)
@@ -584,7 +585,6 @@ def normalize(x, f=True):
     return x
 def integrate_full(root):
     root = integrate_definite(trig0(root))
-    
     def is_solved(x):
         x = solve_integrate(x)
         return "f_integrate" not in str_form(x)
@@ -597,7 +597,6 @@ def integrate_full(root):
     for item in [[lambda x: x, simplify, expand, normalize], [factor2, apart, normalize2, normalize], [trig1, normalize2],\
                  [factor1, normalize, trig6, normalize, expand, normalize, integrate_subs_main, normalize, factor2, simplify, apart, normalize2],\
                  [normalize, integrate_subs_main, normalize2, expand, normalize, byparts, normalize]]:
-
         for item2 in item:
             eq = item2(eq)
             if eq not in log:
