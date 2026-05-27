@@ -10,7 +10,7 @@ https://pypi.org/project/mathai
 I think it is a big realization in computer science and programming to realize that computers can solve mathematics.  
 This understanding should be made mainstream. It can help transform education, mathematical research, and computation of mathematical equations for work.
 
-## Societal Implications Of Such A Computer Program And The Author's Comment On Universities Of India
+## Societal Implications Of Such A Computer Program
 I think mathematics is valued by society because of education. Schools and universities teach them.  
 So this kind of software, if made mainstream, could revolutionarize society.
 
