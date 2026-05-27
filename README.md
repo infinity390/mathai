@@ -40,7 +40,7 @@ from mathai import *
 
 | Function | Description |
 |---|---|
-| `parse(string) | Parses mathematical equations into Tree Data structure |
+| `parse(string)` | Parses mathematical equations into Tree Data structure |
 | `god(string)` | Can automatically solve any Math with steps |
 | `simplify(expr)` | Simplifies and cleans up a given mathematical expression or equation. |
 | `apart(expr)` | Partial Fraction Decomposition |
