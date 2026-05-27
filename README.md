@@ -1,7 +1,10 @@
 # Math AI Documentation
 ## Source
 Github repository of the code
-https://github.com/infinity390/mathai4
+https://github.com/infinity390/mathai
+
+PyPi Library
+https://pypi.org/project/mathai
 
 ## Philosophy
 I think it is a big realization in computer science and programming to realize that computers can solve mathematics.  
@@ -9,7 +12,7 @@ This understanding should be made mainstream. It can help transform education, m
 
 ## Societal Implications Of Such A Computer Program And The Author's Comment On Universities Of India
 I think mathematics is valued by society because of education. Schools and universities teach them.  
-So this kind of software, if made mainstream, could bring real change.
+So this kind of software, if made mainstream, could revolutionarize society.
 
 ## The Summary Of How Computer "Solves" Math
 Math equations are a tree data structure (`TreeNode` class).  
