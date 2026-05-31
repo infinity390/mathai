@@ -54,7 +54,8 @@ class Parser:
     }
     FUNCTIONS = {
         "expect": "f_expect",
-        "zu": "f_zu",
+        "zua": "f_zua",
+        "zub": "f_zub",
         "covariance": "f_covariance",
         "variance": "f_variance",
         "subs": "f_subs",

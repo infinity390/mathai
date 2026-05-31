@@ -5,7 +5,7 @@ from .pde import pde_sep, want, absorb
 
 from .linear import linear_solve
 
-from .decision import god
+from .decision import god, trig7
 
 from .expand import expand
 

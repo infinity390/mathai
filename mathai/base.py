@@ -1,6 +1,7 @@
 import time
 import copy
 from fractions import Fraction
+import math
 def transform_dfs(root, func, arg=[]):
     if root is None:
         return None
@@ -10,16 +11,10 @@ def transform_dfs(root, func, arg=[]):
         node, visited = stack.pop()
         if not visited:
             stack.append((node, True))
-            if hasattr(node, "children") and node.children:
-                for child in reversed(node.children):
-                    stack.append((child, False))
+            for child in node.children:
+                stack.append((child, False))
         else:
-            original = node
-            if hasattr(node, "children") and node.children:
-                new_children = [result_map[child] for child in node.children]
-                node = TreeNode(node.name, new_children)
-            new_node = func(*([node]+arg))
-            result_map[original] = new_node
+            result_map[node] = func(TreeNode(node.name, [result_map[child] for child in node.children]), *arg)
     return result_map[root]
 def transform_dfs_parent(root, func, parent, arg=[]):
     if root is None:
@@ -318,7 +313,6 @@ def factor_generation(eq, prime=False):
             else:
                 output.append(child)
     return output
-import math
 def compute(eq):
     if eq.children == []:
         if eq.name == "s_e":
@@ -332,7 +326,11 @@ def compute(eq):
     values = [compute(child) for child in eq.children]
     if None in values:
         return None
-    if eq.name == "f_add":
+    if eq.name == "f_floor":
+        return math.floor(values[0])
+    elif eq.name == "f_ceil":
+        return math.ceil(values[0])
+    elif eq.name == "f_add":
         return sum(values)
     elif eq.name == "f_mod":
         return values[0] % values[1]
@@ -427,6 +425,21 @@ def product(lst):
     for item in lst[1:]:
         s *= item
     return s
+def nothing_h(node):
+    if node.name in ["f_eq", "f_le", "f_lt", "f_ge", "f_gt"]:
+        out = compute(node.children[0])
+        if out is not None and not math.isclose(out, 0):
+            if node.name in ["f_eq"]:
+                return tree_form("s_false")
+            b =  out > 0
+            if node.name in ["f_lt", "f_le"]:
+                b = not b
+            if b:
+                return tree_form("s_true")
+            return tree_form("s_false")
+    return node
+def nothing(node):
+    return transform_dfs(node, nothing_h)
 def flatten_tree(node):
     if node is None:
         return None
@@ -489,7 +502,7 @@ def string_equation_helper(equation_tree):
     if equation_tree.name == "f_index":
         return string_equation_helper(equation_tree.children[0])+"["+",".join([string_equation_helper(child) for child in equation_tree.children[1:]])+"]"
     s = "(" 
-    if len(equation_tree.children) == 1 or equation_tree.name[2:] in [chr(ord("A")+i) for i in range(26)]+["max", "want", "limitninf", "limitpinf", "subs", "try", "ref","limit", "zu", "integrate", "exist", "forall", "sum2", "int", "pdif", "dif", "A", "B", "C", "covariance", "sum"]:
+    if len(equation_tree.children) == 1 or equation_tree.name[2:] in [chr(ord("A")+i) for i in range(26)]+["max", "want", "limitninf", "limitpinf", "subs", "try", "ref","limit", "zua", "zub", "integrate", "exist", "forall", "sum2", "int", "pdif", "dif", "A", "B", "C", "covariance", "sum"]:
         s = equation_tree.name[2:] + s
     sign = {"f_mod":"%", "f_not":"~", "f_wadd":"+", "f_wmul":"@", "f_intersection":"&", "f_union":"|", "f_sum2":",", "f_exist":",", "f_forall":",", "f_sum":",","f_covariance": ",", "f_B":",", "f_imply":"->", "f_ge":">=", "f_le":"<=", "f_gt":">", "f_lt":"<", "f_cosec":"?" , "f_equiv": "<->", "f_sec":"?", "f_cot": "?", "f_dot": ".", "f_circumcenter":"?", "f_transpose":"?", "f_exp":"?", "f_abs":"?", "f_log":"?", "f_and":"&", "f_or":"|", "f_sub":"-", "f_neg":"?", "f_inv":"?", "f_add": "+", "f_mul": "*", "f_pow": "^", "f_poly": ",", "f_div": "/", "f_sub": "-", "f_dif": ",", "f_sin": "?", "f_cos": "?", "f_tan": "?", "f_eq": "=", "f_sqrt": "?"}
     arr = []

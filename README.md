@@ -1,36 +1,21 @@
 # Math AI Documentation
 ## Source
 Github repository of the code
-https://github.com/infinity390/mathai
-
-PyPi Library
-https://pypi.org/project/mathai
+https://github.com/infinity390/mathai4
 
 ## Philosophy
 I think it is a big realization in computer science and programming to realize that computers can solve mathematics.  
 This understanding should be made mainstream. It can help transform education, mathematical research, and computation of mathematical equations for work.
 
-## Societal Implications Of Such A Computer Program
+## Societal Implications Of Such A Computer Program And The Author's Comment On Universities Of India
 I think mathematics is valued by society because of education. Schools and universities teach them.  
-So this kind of software, if made mainstream, could revolutionarize society.
+So this kind of software, if made mainstream, could bring real change.
 
 ## The Summary Of How Computer "Solves" Math
-Math equations are tree data structure (`TreeNode` class).  
+Math equations are a tree data structure (`TreeNode` class).  
 We can manipulate the math equations using various algorithms (functions provided by the `mathai` library).  
-The `god(expr)` function can be used to solve any mathematical equation, automatically with steps.
+We first parse the math equation strings to get the tree data structure (`parse` function in `mathai`).
 
-## The areas of mathematics my Mathematics Solving Software can Tackle
-- Differentiation (partial and full derivaties both)
-- Limits (approaching to infinity and to a constant value)
-- Integration
-- Trigonometry
-- Algebra
-- Inequality
-- Absolute Value
-- Boolean Algebra and Logic
-- Linear Equations
-- Ordinary Differential Equations
-  
 ## The Library
 Import the library by doing:
 
@@ -38,37 +23,78 @@ Import the library by doing:
 from mathai import *
 ```
 
-| Function | Description |
-|---|---|
-| `parse(string)` | Parses mathematical equations into Tree Data structure |
-| `god(string)` | Can automatically solve any Math with steps |
-| `simplify(expr)` | Simplifies and cleans up a given mathematical expression or equation. |
-| `apart(expr)` | Partial Fraction Decomposition |
-| `factor1(expr)` | Manual Factorization |
-| `factor2(expr)` | Factorization of Quadratic Equations |
-| `expand(expr)` | Distributive Property |
-| `fraction(expr)` | Fraction Cross Multiplication |
-| `diff(expr,wrt)` | Differentiation |
-| `diff2(expr)` | Differentation Partial and Full |
-| `limit0(expr)` | Remove constants to outside in a limit | 
-| `limit1(expr)` | Limit to zero using Lhopital Rule |
-| `limit2(expr)` | Limit across summations |
-| `limit3(expr)` | Limit approaching to infinity |
-| `limit4(expr)` | Limit approach to infinity given a fraction of polynomimals |
-| `trig0(expr)` | Basic trigonometry formulas |
-| `trig1(expr)` | Product to sum trigonometry |
-| `ode_solve(expr)` | Solves ODEs but doesn't integrate automatically afterwards |
-| `integrate_const(expr)` | Removes integration outside the integral |
-| `integrate_formula(expr)` | Basic integration related formulas |
-| `integrate_byparts(expr)` | Integration by parts |
-| `integrate_subs(expr)` | Integration by substitution | 
-| `integrate_summation(expr)` | Integration across summation |
-| `integrate_fraction(expr)` | Integration of fractions |
-| `integrate_clean(expr)` | Clean the expression to only keep the answer if integration was successful |
-| `wavycurvy(expr)` | wavycurvy method to solve inequalities |
-| `linear_solve(expr)` | linear equation solving |
-| `absolute(expr)` | Handle absolute values by making cases |
-| `solve_logically(expr)` | Boolean algebra by Binary Decision Diagrams and Truth tables |
+### str_form
+It is the string representation of a `TreeNode` math equation.
+
+#### Example
+```text
+(cos(x)^2)+(sin(x)^2)
+```
+
+Is represented internally as:
+
+```text
+f_add
+ f_pow
+  f_cos
+   v_0
+  d_2
+ f_pow
+  f_sin
+   v_0
+  d_2
+```
+
+#### Leaf Nodes
+
+**Variables** (start with a `v_` prefix):
+
+- `v_0` -> x
+- `v_1` -> y
+- `v_2` -> z
+- `v_3` -> a
+
+**Numbers** (start with `d_` prefix; only integers):
+
+- `d_-1` -> -1
+- `d_0` -> 0
+- `d_1` -> 1
+- `d_2` -> 2
+
+#### Branch Nodes
+- `f_add` -> addition
+- `f_mul` -> multiplication
+- `f_pow` -> power
+
+### parse
+Takes a math equation string and outputs a `TreeNode` object.
+
+```python
+from mathai import *
+
+equation = parse("sin(x)^2+cos(x)^2")
+print(equation)
+```
+
+#### Output
+```text
+(cos(x)^2)+(sin(x)^2)
+```
+
+### simplify
+It simplifies and cleans up a given math equation.
+
+```python
+from mathai import *
+
+equation = simplify(parse("(x+x+x+x-1-1-1-1)*(4*x-4)*sin(sin(x+x+x)*sin(3*x))"))
+printeq(equation)
+```
+
+#### Output
+```text
+((-4+(4*x))^2)*sin((sin((3*x))^2))
+```
 
 ### Incomplete Documentation, Will be updated and completed later on
 

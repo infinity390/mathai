@@ -111,7 +111,7 @@ def trig0_helper(eq):
                 if quad in [1,3]:
                     return frac_to_tree(out) * tree_form("s_pi")
         for item in trig_sin_table.keys():
-            if Fraction(*item) < Fraction(1,2) and simplify(trig_sin_table[item] - cur.children[0]) == 0:
+            if simplify(trig_sin_table[item] - cur.children[0]) == 0:
                 return frac_to_tree(Fraction(*item)) * tree_form("s_pi")
         return cur
     if cur.name == "f_arccos":

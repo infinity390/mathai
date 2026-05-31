@@ -92,6 +92,38 @@ class Range:
             self.variable = tree_form("v_0")
         else:
             self.variable = variable
+    def equation(self):
+        lst = []
+        if len(self.r) == 1:
+            if self.r[0]:
+                lst = tree_form("s_true")
+            else:
+                lst = []
+        else:
+            for i in range(0,len(self.r),2):
+                if isinstance(self.r[i], bool) and self.r[i]:
+                    out = None
+                    if i == 0:
+                        out = TreeNode("f_lt", [self.variable, self.r[i+1]])
+                    elif i == len(self.r)-1:
+                        out = TreeNode("f_gt", [self.r[i-1], self.variable])
+                    else:
+                        out = TreeNode("f_lt", [self.variable, self.r[i+1]]) &\
+                              TreeNode("f_lt", [self.r[i-1], self.variable])
+                    lst.append(out)
+        if isinstance(lst, list):
+            for item in self.p:
+                lst.append(TreeNode("f_eq", [item, self.variable]))
+        if isinstance(lst, list):
+            if len(lst) == 1:
+                lst = lst[0]
+            elif len(lst) == 0:
+                lst = tree_form("s_false")
+            else:
+                lst = TreeNode("f_or", lst)
+        for item in self.z:
+            lst = lst & TreeNode("f_eq", [item, self.variable]).fx("not")
+        return simplify(lst)
     def truth(self):
         if self.r == [True] and self.z == []:
             return 1
@@ -227,6 +259,7 @@ def helper(eq, var="v_0"):
     more = []
     _, d = num_dem(eq.children[0])
     d = simplify(d)
+    
     for item in factor_generation(d):
         item = simplify(expand(item))
         if len(vlist(item)) != 0:
@@ -312,10 +345,14 @@ def wavycurvy_helper(eq, mode, var=None):
         return eq
     if eq.name in ["f_le", "f_ge", "f_lt", "f_gt", "f_eq"]:
         out = None
+        
         if "f_mod" not in str_form(eq) and len(vlist(eq)) < 2:
             tmp = prepare(eq)
+            
             if tmp is not None:
+                
                 out = helper(eq)
+                
                 out.variable = var
                 out = range2eq2(out)
             else:
@@ -324,6 +361,7 @@ def wavycurvy_helper(eq, mode, var=None):
             out = eq
         return out
     elif eq.name in ["f_and", "f_or", "f_not"]:
+        
         orig = copy.deepcopy(eq)
         lst2 = eq.children
         lst = [item for item in lst2 if isinstance(item, Range)]+[eq2range(item) for item in lst2 if isinstance(item, TreeNode) and item.name == "f_range"]
@@ -549,7 +587,9 @@ def domain(eq):
     #    return eq & out
     return out
 def simple_wavycurvy(eq, mode=False):
-    eq = eq & domain(eq)
+    #eq = eq & domain(eq)
+    if vlist(eq) == [] and (contain2(eq, "f_floor") or contain2(eq, "f_ceil")):
+        return dowhile(eq, lambda x: logic0(nothing(x)))
     fx = lambda x: dowhile(x, lambda y: logic0(fraction(simplify(y))))
     eq = fx(eq)
     if "sqrt" in str(eq):
