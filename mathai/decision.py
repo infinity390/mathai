@@ -129,14 +129,18 @@ def trig_inv_h(eq):
             if len(a) == 1:
                 a = a[0]
                 if a.name in ["f_sin", "f_cos"] and "v_" not in str_form(b):
-                    return TreeNode("f_zua", [b.fx(f"arc{a.name[2:]}"), a.children[0]]) | TreeNode("f_zub", [b.fx(f"arc{a.name[2:]}"), a.children[0]])
+                    v = tree_form(vlist(a.children[0])[0])
+                    return TreeNode("f_zu", [-a.children[0]+b.fx(f"arc{a.name[2:]}") + parse("2*pi*k"), v, parse("k")]) |\
+                           TreeNode("f_zu", [parse("pi")-a.children[0]-b.fx(f"arc{a.name[2:]}") + parse("2*pi*k"), v, parse("k")])
             elif len(a) == 2:
                 a = a[0]
                 if a.name in ["f_sin", "f_cos"] and b.name in ["f_sin", "f_cos"]:
                     if a.name == b.name:
-                        if a.name == "f_sin" and False:
-                            return TreeNode("f_zua", [b.children[0], a.children[0]]) | TreeNode("f_zub", [b.children[0], a.children[0]])
-    if eq.name == "f_and" and len(eq.children) == 2 and (contain2(eq, "f_zua") or contain2(eq, "f_zub")):
+                        if a.name == "f_sin":
+                            v = tree_form(vlist(a.children[0])[0])
+                            return TreeNode("f_zu", [-a.children[0] + b.children[0] + parse("2*pi*k"), v, parse("k")]) |\
+                                   TreeNode("f_zu", [-a.children[0] + parse("pi") - b.children[0] + parse("2*pi*k"), v, parse("k")])
+    if eq.name == "f_and" and len(eq.children) == 2 and contain2(eq, "f_zu"):
         a,b = eq.children
         if b.name == "f_range":
             a, b = b, a
@@ -158,13 +162,16 @@ def trig_inv_h(eq):
                     v = trig0(b.children[0])
                     L, U = a.r[i-1], a.r[i+1]
                     out_a, out_b = None, None
-                    if b.name == "f_zua":
-                        out_a = ((L - v)/parse("2*pi")).fx("floor") + tree_form("d_1")
-                        out_b = ((U - v)/parse("2*pi")).fx("ceil") - tree_form("d_1")
-                    elif b.name == "f_zub":
-                        pi = tree_form("s_pi")
-                        out_a = ((L - pi + v)/parse("2*pi")).fx("floor") + tree_form("d_1")
-                        out_b = ((U - pi + v)/parse("2*pi")).fx("ceil") - tree_form("d_1")
+                    if b.name == "f_zu":
+                        x = str_form(b.children[2])
+                        f = inverse(copy.deepcopy(v),x)
+                        f = simplify(f)
+                        inc = diff(copy.deepcopy(f),b.children[1].name)
+                        out_a = replace(f, b.children[1], L).fx("floor") + tree_form("d_1")
+                        out_b = replace(f, b.children[1], U).fx("ceil") - tree_form("d_1")
+                        if frac(inc) is not None:
+                            if frac(inc) < 0:
+                                out_a, out_b = out_b, out_a                                
                     else:
                         return eq
                     out_a = simplify(out_a)
@@ -184,12 +191,9 @@ def trig_inv_h(eq):
                     v = trig0(b.children[0])
                     L = item
                     out_a = None
-                    
-                    if b.name == "f_zua":
-                        out_a = (L - v)/parse("2*pi")
-                    elif b.name == "f_zub":
-                        pi = tree_form("s_pi")
-                        out_a = (L - pi + v)/parse("2*pi")
+                    if b.name == "f_zu":
+                        f = inverse(copy.deepcopy(v),str_form(b.children[2]))
+                        out_a = replace(f, b.children[1], L)
                     else:
                         return eq
                     out_a = simplify(fraction(out_a))
@@ -207,12 +211,9 @@ def trig_inv_h(eq):
                             lst.remove(out_a)
             lst2 = TreeNode("f_or", [])
             for item in lst:
-                if b.name == "f_zua":
-                    out = tree_form(f"d_{item}")*parse("2*pi")+b.children[0]
-                    out = TreeNode("f_eq", [a.variable-out, tree_form("d_0")])
-                    lst2.children.append(out)
-                elif b.name == "f_zub":
-                    out = tree_form("s_pi")+tree_form(f"d_{item}")*parse("2*pi")-b.children[0]
+                if b.name == "f_zu":
+                    out = inverse(copy.deepcopy(b.children[0]),str_form(b.children[1]))
+                    out = replace(out, b.children[2], tree_form(f"d_{item}"))
                     out = TreeNode("f_eq", [a.variable-out, tree_form("d_0")])
                     lst2.children.append(out)
                 else:
@@ -237,7 +238,7 @@ def trig7(equation):
         eq = simplify(eq)
         eq = trig_inv(eq)
         eq = simplify(eq)
-        if not (contain2(eq, "f_zua") or contain2(eq, "f_zub")):
+        if not contain2(eq, "f_zu"):
             eq = simple_wavycurvy(eq)
             if eq.name == "f_range":
                 return eq
@@ -246,10 +247,6 @@ def trig7(equation):
     return eq
 def two_eq_handle(eq):
     eq2 = trig0(eq)
-    '''
-    if contain2(eq2, "f_sin") or contain2(eq2, "f_cos"):
-        return two_eq_handle2(eq)
-    '''
     eq = flatten_tree(eq)
     orig = eq
     if eq.name == "f_and":
@@ -301,7 +298,7 @@ def god(string):
     if "f_limit" in str_form(eq):
         eq = limit1(limit5(eq))
     elif all(not contain2(eq, "f_"+item) for item in "dif add mul abs pow dif integrate arcsin sin cos log limit eq lt le ge gt".split(" ")) and\
-       any(contain2(eq, "f_"+item) for item in "and or not".split(" ")):
+       any(contain2(eq, "f_"+item) for item in "and or not imply equiv".split(" ")):
         eq = solve_logically(truth_gen(simplify(set_sub(eq))))
         print(f"=> {eq}")
         print()

@@ -22,9 +22,10 @@ def tokenize(text):
     return tokens
 class Parser:
     PRECEDENCE = {
-        "|": 10,
-        "&": 20,
-        "<->": 25,
+        "|": 20,
+        "&": 25,
+        "->": 15,
+        "<->": 10,
         "=": 30,
         "<": 30,
         ">": 30,
@@ -50,6 +51,7 @@ class Parser:
         ">=": "f_ge",
         "&": "f_and",
         "|": "f_or",
+        "->": "f_imply",
         "<->": "f_equiv",
     }
     FUNCTIONS = {
