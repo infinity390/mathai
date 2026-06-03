@@ -56,8 +56,8 @@ class Parser:
     }
     FUNCTIONS = {
         "expect": "f_expect",
-        "zua": "f_zua",
-        "zub": "f_zub",
+        "zu": "f_zu",
+        "list": "f_list",
         "covariance": "f_covariance",
         "variance": "f_variance",
         "subs": "f_subs",
@@ -199,4 +199,5 @@ def replace_var_convention_h(eq):
 def replace_var_convention(eq):
     return transform_dfs(eq, replace_var_convention_h, [])
 def parse(text):
+    text = text.replace("[","list(").replace("]",")")
     return replace_var_convention(Parser(text).parse())

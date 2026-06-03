@@ -52,157 +52,121 @@ def clear_div(eq, denom):
     if lst2 == []:
         return product(lst4), sign
     return product(lst2), sign
-def multiply_node(equation):
-    if equation is None:
+def multiply_node_h(node):
+    if node is None:
         return None
-    stack = [(equation, 0, [])]
-    while stack:
-        node, child_index, processed_children = stack.pop()
-        if child_index >= len(node.children):
-            node.children = processed_children
-            if node.name == "f_mul":
-                con = 1
-                new_children = []
-                for child in reversed(node.children):
-                    val = frac(child)
-                    if val is not None:
-                        con *= val
-                    else:
-                        new_children.append(child)
-                if con == 0:
-                    node = tree_form("d_0")
-                    if stack:
-                        parent, idx, parent_children = stack.pop()
-                        parent_children.append(node)
-                        stack.append((parent, idx + 1, parent_children))
-                        continue
-                    else:
-                        return node
-                node.children = new_children
-                base_powers = []
-                for child in node.children:
-                    if child.name == "f_pow":
-                        base, power = child.children
-                    else:
-                        base = child
-                        power = tree_form("d_1")
-                    found = False
-                    for i, (b, p) in enumerate(base_powers):
-                        if flatten_tree(b) == flatten_tree(base):
-                            base_powers[i] = (b, p + power)
-                            found = True
-                            break
-                    if not found:
-                        base_powers.append((base, power))
-                new_mul = TreeNode("f_mul", [])
-                for base, power in base_powers:
-                    if power == tree_form("d_1"):
-                        new_mul.children.append(base)
-                    elif power == tree_form("d_0"):
-                        continue
-                    else:
-                        new_mul.children.append(TreeNode("f_pow", [base, power]))
-                con_tree = frac_to_tree(con)
-                if con_tree != tree_form("d_1"):
-                    new_mul.children.append(con_tree)
-                if not new_mul.children:
-                    node = tree_form("d_1")
-                elif len(new_mul.children) == 1:
-                    node = new_mul.children[0]
-                else:
-                    node = new_mul
-            if stack:
-                parent, idx, parent_children = stack.pop()
-                parent_children.append(node)
-                stack.append((parent, idx + 1, parent_children))
-            else:
-                return node  
+    if node.name != "f_mul":
+        return node
+    con = 1
+    new_children = []
+    for child in node.children:
+        val = frac(child)
+        if val is not None:
+            con *= val
         else:
-            stack.append((node, child_index, processed_children))
-            child = node.children[child_index]
-            stack.append((child, 0, []))
-
-    return TreeNode("f_add", terms)
-def addition_node(equation):
-    if equation is None:
+            new_children.append(child)
+    if con == 0:
+        return tree_form("d_0")
+    base_powers = []
+    for child in new_children:
+        if child.name == "f_pow":
+            base, power = child.children
+        else:
+            base = child
+            power = tree_form("d_1")
+        base = flatten_tree(base)
+        found = False
+        for i, (b, p) in enumerate(base_powers):
+            if b == base:
+                base_powers[i] = (b,p + power)
+                found = True
+                break
+        if not found:
+            base_powers.append((base, power))
+    out = []
+    for base, power in base_powers:
+        if power == tree_form("d_0"):
+            continue
+        elif power == tree_form("d_1"):
+            out.append(base)
+        else:
+            out.append(TreeNode("f_pow",[base, power]))
+    con_tree = frac_to_tree(con)
+    if con_tree != tree_form("d_1"):
+        out.append(con_tree)
+    if not out:
+        return tree_form("d_1")
+    if len(out) == 1:
+        return out[0]
+    return TreeNode("f_mul", out)
+def multiply_node(node):
+    return transform_dfs(node,multiply_node_h)
+def addition_node_h(node):
+    if node is None:
         return None
-    stack = [(equation, 0, [])]
-    while stack:
-        node, child_index, processed_children = stack.pop()
-        if child_index >= len(node.children):
-            node.children = processed_children
-            if node.name == "f_add":
-                con = 0
-                new_children = []
-                for child in reversed(node.children):
-                    val = frac(child)
-                    if val is not None:
-                        con += val
-                    else:
-                        new_children.append(child)
-                node.children = new_children
-                base_terms = []
-                for child in node.children:
-                    if child.name == "f_mul":
-                        coeff_parts = []
-                        base_parts = []
-                        for c in child.children:
-                            val = frac(c)
-                            if val is not None:
-                                coeff_parts.append(c)
-                            else:
-                                base_parts.append(c)
-                        if not coeff_parts:
-                            coeff = tree_form("d_1")
-                        elif len(coeff_parts) == 1:
-                            coeff = coeff_parts[0]
-                        else:
-                            coeff = TreeNode("f_mul", coeff_parts)
-                        if not base_parts:
-                            base = tree_form("d_1")
-                        elif len(base_parts) == 1:
-                            base = base_parts[0]
-                        else:
-                            base = TreeNode("f_mul", base_parts)
-                    else:
-                        base = child
-                        coeff = tree_form("d_1")
-                    found = False
-                    for i, (b, cff) in enumerate(base_terms):
-                        if flatten_tree(b) == flatten_tree(base):
-                            base_terms[i] = (b, cff + coeff)
-                            found = True
-                            break
-                    if not found:
-                        base_terms.append((base, coeff))
-                new_add = TreeNode("f_add", [])
-                for base, coeff in base_terms:
-                    if coeff == tree_form("d_0"):
-                        continue
-                    elif coeff == tree_form("d_1"):
-                        new_add.children.append(base)
-                    else:
-                        new_add.children.append(TreeNode("f_mul", [coeff, base]))
-                con_tree = frac_to_tree(con)
-                if con_tree != tree_form("d_0"):
-                    new_add.children.append(con_tree)
-                if not new_add.children:
-                    node = tree_form("d_0")
-                elif len(new_add.children) == 1:
-                    node = new_add.children[0]
-                else:
-                    node = new_add
-            if stack:
-                parent, idx, parent_children = stack.pop()
-                parent_children.append(node)
-                stack.append((parent, idx + 1, parent_children))
-            else:
-                return node
+    if node.name != "f_add":
+        return node
+    con = 0
+    new_children = []
+    for child in node.children:
+        val = frac(child)
+        if val is not None:
+            con += val
         else:
-            stack.append((node, child_index, processed_children))
-            child = node.children[child_index]
-            stack.append((child, 0, []))
-    return tree_form("d_0")
+            new_children.append(child)
+    base_terms = []
+    for child in new_children:
+        if child.name == "f_mul":
+            coeff_parts = []
+            base_parts = []
+            for c in child.children:
+                val = frac(c)
+                if val is not None:
+                    coeff_parts.append(c)
+                else:
+                    base_parts.append(c)
+            if not coeff_parts:
+                coeff = tree_form("d_1")
+            elif len(coeff_parts) == 1:
+                coeff = coeff_parts[0]
+            else:
+                coeff = TreeNode("f_mul",coeff_parts)
+            if not base_parts:
+                base = tree_form("d_1")
+            elif len(base_parts) == 1:
+                base = base_parts[0]
+            else:
+                base = TreeNode("f_mul",base_parts)
+        else:
+            base = child
+            coeff = tree_form("d_1")
+        base = flatten_tree(base)
+        found = False
+        for i, (b, cff) in enumerate(base_terms):
+            if b == base:
+                base_terms[i] = (b,cff + coeff)
+                found = True
+                break
+        if not found:
+            base_terms.append((flatten_tree(base), coeff))
+    out = []
+    for base, coeff in base_terms:
+        if coeff == tree_form("d_0"):
+            continue
+        elif coeff == tree_form("d_1"):
+            out.append(base)
+        else:
+            out.append(TreeNode("f_mul",[coeff, base]))
+    con_tree = frac_to_tree(con)
+    if con_tree != tree_form("d_0"):
+        out.append(con_tree)
+    if not out:
+        return tree_form("d_0")
+    if len(out) == 1:
+        return out[0]
+    return TreeNode("f_add", out)
+def addition_node(node):
+    return transform_dfs(node, addition_node_h)
 def complex_to_tree(z):
     if z is None:
         return None
@@ -584,7 +548,10 @@ def simplify(eq, basic=True, break_factors=False):
     if basic:
         eq = convert_to_basic(eq)
     eq = transform_dfs(eq, com)
-    eq = flatten_tree(simplify_h(eq))
+    
+    eq = simplify_h(eq)
+    
+    eq = flatten_tree(eq)
     if break_factors:
         eq = transform_dfs(eq, break_f)
     return eq

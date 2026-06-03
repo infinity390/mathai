@@ -440,26 +440,23 @@ def nothing_h(node):
     return node
 def nothing(node):
     return transform_dfs(node, nothing_h)
-def flatten_tree(node):
+def flatten_tree_h(node):
     if node is None:
         return None
     if not node.children:
         return node
-    ad = []
     if node.name in ["f_add", "f_mul", "f_and", "f_or", "f_wmul"]:
         merged_children = []
         for child in node.children:
-            flattened_child = flatten_tree(child)
-            if flattened_child is None:
-                return None
-            if flattened_child.name == node.name:
-                merged_children.extend(flattened_child.children)
+            if child.name == node.name:
+                merged_children.extend(child.children)
             else:
-                merged_children.append(flattened_child)
+                merged_children.append(child)
         return TreeNode(node.name, merged_children)
     else:
-        node.children = [flatten_tree(child) for child in node.children]
         return node
+def flatten_tree(node):
+    return transform_dfs(node, flatten_tree_h)
 def dowhile(eq, fx):
     if eq is None:
         return None
