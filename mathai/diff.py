@@ -46,32 +46,17 @@ def helper(eq):
         if eq.children[0].name == "f_arctan":
             d =  TreeNode(name, [eq.children[0].children[0], eq.children[1]])
             return d/(tree_form("d_1")+eq.children[0].children[0]*eq.children[0].children[0])
+        if eq.children[0].name.startswith("f_") and len(eq.children[0].name) == 3:
+            if len(eq.children[0].children) == 1:
+                return TreeNode(eq.children[0].name, [tree_form("d_1"), eq.children[0].children[0]]) * TreeNode(name, [eq.children[0].children[0], eq.children[1]])
+            else:
+                return TreeNode(eq.children[0].name, [tree_form("d_1")+eq.children[0].children[0], eq.children[0].children[1]]) *\
+                       TreeNode(name, [eq.children[0].children[1], eq.children[1]])
     return eq
-def diff3(eq):
-    if eq is None:
-        return None
-    eq = simplify(eq)
-    if eq is None:
-        return None
-    stack = [(eq, False)]
-    out = {}
-    while stack:
-        node, visited = stack.pop()
-        if not visited:
-            stack.append((node, True))
-            for c in node.children:
-                stack.append((c, False))
-            continue
-        new_children = [out[c] for c in node.children]
-        rebuilt = TreeNode(node.name, new_children)
-        rebuilt = helper(rebuilt)
-        rebuilt = simplify(rebuilt)
-        out[node] = rebuilt
-    return out[eq]
 def diff2(eq):
     if eq is None:
         return None
-    return dowhile(eq, diff3)
+    return dowhile(eq, lambda x: transform_dfs(x, helper))
 def diff(equation, var="v_0"):
     def diffeq(eq):
         eq = simplify(eq)

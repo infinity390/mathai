@@ -6,6 +6,8 @@ def convert_to_basic(node):
     if not node.name.startswith("f_"):
         return node
     node.children = [convert_to_basic(c) for c in node.children]
+    if node.name == "f_neg":
+        node = tree_form("d_-1")*node.children[0]
     if node.name == "f_sub":
         node = node.children[0]-node.children[1]
     if node.name == "f_div":

@@ -317,7 +317,7 @@ def god(string):
             if eq not in log:
                 log.append(eq)
                 print(eq)
-        eq = trig7(eq)
+        # eq = trig7(eq)
         print(f"=> {eq}")
         return eq
     elif "f_dif" in str_form(eq) or "f_integrate" in str_form(eq):

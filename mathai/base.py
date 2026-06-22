@@ -408,9 +408,11 @@ def summation(lst):
     if len(lst) == 0:
         return tree_form("d_0")
     s = lst[0]
-    for item in lst[1:]:
-        s += item
-    return s
+    if len(lst) > 1:
+        s = lst[1:]+[s]
+        return TreeNode("f_add", s)
+    else:
+        return s
 def vlist(eq):
     out = []
     if eq.name[:2] == "v_":
@@ -498,10 +500,20 @@ def string_equation_helper(equation_tree):
         return "["+",".join([string_equation_helper(child) for child in equation_tree.children])+"]"
     if equation_tree.name == "f_index":
         return string_equation_helper(equation_tree.children[0])+"["+",".join([string_equation_helper(child) for child in equation_tree.children[1:]])+"]"
-    s = "(" 
-    if len(equation_tree.children) == 1 or equation_tree.name[2:] in [chr(ord("A")+i) for i in range(26)]+["zu", "max", "want", "limitninf", "limitpinf", "subs", "try", "ref","limit", "zua", "zub", "integrate", "exist", "forall", "sum2", "int", "pdif", "dif", "A", "B", "C", "covariance", "sum"]:
+    s = "("
+    if equation_tree.name[2:] in [chr(ord("A")+i) for i in range(26)]+[chr(ord("a")+i) for i in range(26)] and len(equation_tree.children) == 2:
+        n = int(equation_tree.children[0].name)
+        s = equation_tree.name[2:] + "'"*n + s
+        equation_tree.children.pop(0)
+    elif len(equation_tree.children) == 1 or\
+       equation_tree.name[2:] in ["zu", "max", "limitninf", "limitpinf", "subs", "try", "limit", "integrate", "exist", "forall", "pdif", "dif", "covariance", "sum"]:
         s = equation_tree.name[2:] + s
-    sign = {"f_mod":"%", "f_not":"~", "f_wadd":"+", "f_wmul":"@", "f_intersection":"&", "f_union":"|", "f_sum2":",", "f_exist":",", "f_forall":",", "f_sum":",","f_covariance": ",", "f_B":",", "f_imply":"->", "f_ge":">=", "f_le":"<=", "f_gt":">", "f_lt":"<", "f_cosec":"?" , "f_equiv": "<->", "f_sec":"?", "f_cot": "?", "f_dot": ".", "f_circumcenter":"?", "f_transpose":"?", "f_exp":"?", "f_abs":"?", "f_log":"?", "f_and":"&", "f_or":"|", "f_sub":"-", "f_neg":"?", "f_inv":"?", "f_add": "+", "f_mul": "*", "f_pow": "^", "f_poly": ",", "f_div": "/", "f_sub": "-", "f_dif": ",", "f_sin": "?", "f_cos": "?", "f_tan": "?", "f_eq": "=", "f_sqrt": "?"}
+    sign = {"f_mod":"%", "f_not":"~", "f_wadd":"+", "f_wmul":"@", "f_intersection":"&", "f_union":"|",\
+            "f_exist":",", "f_forall":",", "f_sum":",","f_covariance": ",", "f_B":",", "f_imply":"->",\
+            "f_ge":">=", "f_le":"<=", "f_gt":">", "f_lt":"<", "f_cosec":"?" , "f_equiv": "<->", "f_sec":"?",\
+            "f_cot": "?", "f_dot": ".", "f_transpose":"?", "f_exp":"?", "f_abs":"?", "f_log":"?", "f_and":"&",\
+            "f_or":"|", "f_sub":"-", "f_neg":"?", "f_inv":"?", "f_add": "+", "f_mul": "*", "f_pow": "^",\
+            "f_div": "/", "f_sub": "-", "f_dif": ",", "f_sin": "?", "f_cos": "?", "f_tan": "?", "f_eq": "=", "f_sqrt": "?"}
     arr = []
     k = None
     if equation_tree.name not in sign.keys():

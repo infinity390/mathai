@@ -175,6 +175,29 @@ class Parser:
             self.OP_MAP[op],
             [left, right]
         )
+def remove_extra_brackets(s):
+    stack = []
+    pairs = {}
+    for i, c in enumerate(s):
+        if c == "(":
+            stack.append(i)
+        elif c == ")":
+            if stack:
+                start = stack.pop()
+                pairs[start] = i
+    remove = set()
+    for start, end in pairs.items():
+        if start + 1 < len(s) and s[start + 1] == "(":
+            inner_start = start + 1
+            if inner_start in pairs:
+                inner_end = pairs[inner_start]
+                if inner_end == end - 1:
+                    remove.add(start)
+                    remove.add(end)
+    return "".join(
+        c for i, c in enumerate(s)
+        if i not in remove
+    )
 def normalize_variables(text):
     lower_map = {}
     lower_order = ['x', 'y', 'z']
@@ -200,4 +223,5 @@ def replace_var_convention(eq):
     return transform_dfs(eq, replace_var_convention_h, [])
 def parse(text):
     text = text.replace("[","list(").replace("]",")")
+    text = remove_extra_brackets(text)
     return replace_var_convention(Parser(text).parse())
