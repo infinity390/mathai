@@ -383,6 +383,94 @@ print(eq)
 true
 ```
 
+#### Example Demonstration 8 (fully connected neural network 2,2,1)
+```python
+from mathai import *
+
+# 2, 2, 1 fully connected neural network derivation
+# weights in first layer
+w11 = parse("a")
+w12 = parse("b")
+w21 = parse("c")
+w22 = parse("d")
+
+# biases in first layer
+b1 = parse("f")
+b2 = parse("g")
+
+# weights in second layer
+v1 = parse("h")
+v2 = parse("j")
+
+# bias in second layer
+c = parse("k")
+
+# input as in training data
+x1 = parse("x")
+x2 = parse("y")
+
+# output as in training data
+y = parse("z")
+
+z1 = w11 * x1 + w12 * x2 + b1
+z2 = w21 * x1 + w22 * x2 + b2
+
+#learning rate
+learning_rate = parse("n")
+
+# activation function
+def sigmoid(eq):
+    return eq.fx("F")
+
+h1 = sigmoid(z1)
+h2 = sigmoid(z2)
+
+o = v1 * h1 + v2 * h2 + c
+
+# mean squared loss
+L = (o-y)**2/tree_form("d_2")
+L = simplify(L)
+
+print(f"loss Function => {L}")
+print()
+
+def doing(eq):
+    if eq.name == "f_dif":
+        return tree_form("d_0")
+    return TreeNode(eq.name, [doing(item) for item in eq.children])
+lst = {}
+for item in [w11, w12, w21, w22, b1, b2, c, v1, v2]:
+    lst[item] = simplify(item - learning_rate * diff2(TreeNode("f_pdif", [L, item])))
+
+for key, item in lst.items():
+    print(f"new value of {key} => {item}")
+    print()
+```
+
+#### Output
+
+```
+loss Function => (((F(((x*a)+(y*b)+f))*h)+(F(((x*c)+(y*d)+g))*j)-z+k)^2)/2
+
+new value of a => (F'(((x*a)+(y*b)+f))*(-(F(((x*a)+(y*b)+f))*h)-(F(((x*c)+(y*d)+g))*j)-k+z)*x*h*n)+a
+
+new value of b => (F'(((x*a)+(y*b)+f))*(-(F(((x*a)+(y*b)+f))*h)-(F(((x*c)+(y*d)+g))*j)-k+z)*y*h*n)+b
+
+new value of c => (F'(((x*c)+(y*d)+g))*(-(F(((x*a)+(y*b)+f))*h)-(F(((x*c)+(y*d)+g))*j)-k+z)*x*j*n)+c
+
+new value of d => (F'(((x*c)+(y*d)+g))*(-(F(((x*a)+(y*b)+f))*h)-(F(((x*c)+(y*d)+g))*j)-k+z)*y*j*n)+d
+
+new value of f => (F'(((x*a)+(y*b)+f))*(-(F(((x*a)+(y*b)+f))*h)-(F(((x*c)+(y*d)+g))*j)-k+z)*h*n)+f
+
+new value of g => (F'(((x*c)+(y*d)+g))*(-(F(((x*a)+(y*b)+f))*h)-(F(((x*c)+(y*d)+g))*j)-k+z)*j*n)+g
+
+new value of k => ((-(F(((x*a)+(y*b)+f))*h)-(F(((x*c)+(y*d)+g))*j)-k+z)*n)+k
+
+new value of h => (F(((x*a)+(y*b)+f))*(-(F(((x*a)+(y*b)+f))*h)-(F(((x*c)+(y*d)+g))*j)-k+z)*n)+h
+
+new value of j => (F(((x*c)+(y*d)+g))*(-(F(((x*a)+(y*b)+f))*h)-(F(((x*c)+(y*d)+g))*j)-k+z)*n)+j
+```
+
 ### Questions solved using god() function
 
 #### Code

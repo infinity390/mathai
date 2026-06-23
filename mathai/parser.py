@@ -1,14 +1,16 @@
 import re
 from .base import *
 TOKEN_REGEX = [
-    ("NUMBER",   r'\d+(\.\d+)?'),
-    ("IDENT",    r'[A-Za-z_][A-Za-z0-9_]*'),
-    ("OP",       r'<=|>=|!=|->|<->|[+\-*/^=<>|&(),~]'),
-    ("SPACE",    r'\s+'),
+    ("NUMBER", r'\d+(\.\d+)?'),
+    ("IDENT", r'[A-Za-z_][A-Za-z0-9_]*'),
+    ("OP", r'<=|>=|!=|->|<->|[+\-*/^=<>|&(),~\[\]]'),
+    ("SPACE", r'\s+'),
 ]
 MASTER = re.compile(
-    '|'.join(f'(?P<{name}>{regex})'
-             for name, regex in TOKEN_REGEX)
+    '|'.join(
+        f'(?P<{name}>{regex})'
+        for name, regex in TOKEN_REGEX
+    )
 )
 def tokenize(text):
     tokens = []
@@ -17,8 +19,12 @@ def tokenize(text):
         value = match.group()
         if kind == "SPACE":
             continue
-        tokens.append((kind, value))
-    tokens.append(("EOF", "EOF"))
+        tokens.append(
+            (kind, value)
+        )
+    tokens.append(
+        ("EOF", "EOF")
+    )
     return tokens
 class Parser:
     PRECEDENCE = {
@@ -36,8 +42,12 @@ class Parser:
         "*": 50,
         "/": 50,
         "^": 60,
+        # postfix indexing
+        "[": 80,
     }
-    RIGHT_ASSOC = {"^"}
+    RIGHT_ASSOC = {
+        "^"
+    }
     OP_MAP = {
         "+": "f_add",
         "-": "f_sub",
@@ -64,11 +74,7 @@ class Parser:
         "try": "f_try",
         "limit": "f_limit",
         "forall": "f_forall",
-        "limitninf": "f_limitninf",
-        "limitpinf": "f_limitpinf",
-        "imply": "f_imply",
         "exist": "f_exist",
-        "pdif": "f_pdif",
         "sin": "f_sin",
         "cos": "f_cos",
         "tan": "f_tan",
@@ -77,14 +83,8 @@ class Parser:
         "integrate": "f_integrate",
         "dif": "f_dif",
         "abs": "f_abs",
-        "cosec": "f_cosec",
-        "sec": "f_sec",
-        "cot": "f_cot",
-        "arctan": "f_arctan",
-        "arcsin": "f_arcsin",
-        "arccot": "f_arccot",
-        "arccos": "f_arccos",
-        "max": "f_max"
+        "max": "f_max",
+        "wmul": "f_wmul"
     }
     CONSTANTS = {
         "pi": "s_pi",
@@ -92,7 +92,7 @@ class Parser:
         "true": "s_true",
         "false": "s_false",
         "inf": "s_inf",
-        "i": "s_i"
+        "i": "s_i",
     }
     def __init__(self, text):
         self.tokens = tokenize(text)
@@ -106,36 +106,53 @@ class Parser:
     def expect(self, value):
         tok = self.advance()
         if tok[1] != value:
-            raise SyntaxError(f"Expected {value}, got {tok}")
+            raise SyntaxError(
+                f"Expected {value}, got {tok}"
+            )
     def parse(self):
         expr = self.expression()
         if self.peek()[0] != "EOF":
-            raise SyntaxError("Unexpected token")
+            raise SyntaxError(
+                "Unexpected token"
+            )
         return expr
     def expression(self, rbp=0):
         t = self.advance()
         left = self.nud(t)
         while rbp < self.lbp(self.peek()):
             t = self.advance()
-            left = self.led(t, left)
+            left = self.led(
+                t,
+                left
+            )
         return left
     def lbp(self, token):
         if token[0] != "OP":
             return 0
-        return self.PRECEDENCE.get(token[1], 0)
+        return self.PRECEDENCE.get(
+            token[1],
+            0
+        )
     def nud(self, token):
         kind, value = token
         if kind == "NUMBER":
-            return TreeNode("d_" + value)
+            return TreeNode(
+                "d_" + value
+            )
         if kind == "IDENT":
             if value in self.CONSTANTS:
-                return TreeNode(self.CONSTANTS[value])
+                return TreeNode(
+                    self.CONSTANTS[value]
+                )
+            # function call
             if self.peek()[1] == "(":
                 self.expect("(")
                 args = []
                 if self.peek()[1] != ")":
                     while True:
-                        args.append(self.expression())
+                        args.append(
+                            self.expression()
+                        )
                         if self.peek()[1] == ",":
                             self.advance()
                             continue
@@ -145,35 +162,71 @@ class Parser:
                     value,
                     "f_" + value
                 )
-                return TreeNode(fname, args)
-            return TreeNode("v_" + value)
+                return TreeNode(
+                    fname,
+                    args
+                )
+            return TreeNode(
+                "v_" + value
+            )
         if value == "-":
-            expr = self.expression(100)
             return TreeNode(
                 "f_neg",
-                [expr]
+                [
+                    self.expression(100)
+                ]
             )
         if value == "~":
-            expr = self.expression(100)
             return TreeNode(
                 "f_not",
-                [expr]
+                [
+                    self.expression(100)
+                ]
             )
         if value == "(":
             expr = self.expression()
             self.expect(")")
             return expr
-        raise SyntaxError(f"Unexpected token {token}")
+        raise SyntaxError(
+            f"Unexpected token {token}"
+        )
     def led(self, token, left):
         op = token[1]
+        # =========================
+        # indexing operator
+        # =========================
+        if op == "[":
+            args = []
+            if self.peek()[1] != "]":
+                while True:
+                    args.append(
+                        self.expression()
+                    )
+                    if self.peek()[1] == ",":
+                        self.advance()
+                        continue
+                    break
+            self.expect("]")
+            return TreeNode(
+                "f_index",
+                [left] + args
+            )
+        # normal operators
         bp = self.PRECEDENCE[op]
         if op in self.RIGHT_ASSOC:
-            right = self.expression(bp - 1)
+            right = self.expression(
+                bp - 1
+            )
         else:
-            right = self.expression(bp)
+            right = self.expression(
+                bp
+            )
         return TreeNode(
             self.OP_MAP[op],
-            [left, right]
+            [
+                left,
+                right
+            ]
         )
 def remove_extra_brackets(s):
     stack = []
@@ -187,26 +240,36 @@ def remove_extra_brackets(s):
                 pairs[start] = i
     remove = set()
     for start, end in pairs.items():
-        if start + 1 < len(s) and s[start + 1] == "(":
-            inner_start = start + 1
-            if inner_start in pairs:
-                inner_end = pairs[inner_start]
-                if inner_end == end - 1:
+        if start + 1 < len(s) and s[start+1] == "(":
+            inner = start + 1
+            if inner in pairs:
+                if pairs[inner] == end - 1:
                     remove.add(start)
                     remove.add(end)
     return "".join(
-        c for i, c in enumerate(s)
+        c
+        for i,c in enumerate(s)
         if i not in remove
     )
 def normalize_variables(text):
     lower_map = {}
-    lower_order = ['x', 'y', 'z']
-    lower_order += [chr(c) for c in range(ord('a'), ord('w') + 1)]
-    for i, ch in enumerate(lower_order):
+    order = [
+        'x','y','z'
+    ]
+    order += [
+        chr(c)
+        for c in range(
+            ord('a'),
+            ord('w') + 1
+        )
+    ]
+    for i,ch in enumerate(order):
         lower_map[ch] = i
     upper_map = {}
-    for i, ch in enumerate("ABCDEFGHIJKLMNOPQRSTUVWXYZ"):
-        upper_map[ch] = -(i + 1)
+    for i,ch in enumerate(
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+    ):
+        upper_map[ch] = -(i+1)
     def repl(match):
         var = match.group(1)
         if var in lower_map:
@@ -214,14 +277,27 @@ def normalize_variables(text):
         if var in upper_map:
             return f"v_{upper_map[var]}"
         return match.group(0)
-    return re.sub(r'v_([a-zA-Z])', repl, text)
+    return re.sub(
+        r'v_([a-zA-Z])',
+        repl,
+        text
+    )
 def replace_var_convention_h(eq):
     if eq.name.startswith("v_"):
-        return tree_form(normalize_variables(eq.name))
+        return tree_form(
+            normalize_variables(eq.name)
+        )
     return eq
 def replace_var_convention(eq):
-    return transform_dfs(eq, replace_var_convention_h, [])
+    return transform_dfs(
+        eq,
+        replace_var_convention_h,
+        []
+    )
 def parse(text):
-    text = text.replace("[","list(").replace("]",")")
-    text = remove_extra_brackets(text)
-    return replace_var_convention(Parser(text).parse())
+    text = remove_extra_brackets(
+        text
+    )
+    return replace_var_convention(
+        Parser(text).parse()
+    )
