@@ -434,10 +434,6 @@ L = simplify(L)
 print(f"loss Function => {L}")
 print()
 
-def doing(eq):
-    if eq.name == "f_dif":
-        return tree_form("d_0")
-    return TreeNode(eq.name, [doing(item) for item in eq.children])
 lst = {}
 for item in [w11, w12, w21, w22, b1, b2, c, v1, v2]:
     lst[item] = simplify(item - learning_rate * diff2(TreeNode("f_pdif", [L, item])))
@@ -469,6 +465,69 @@ new value of k => ((-(F(((x*a)+(y*b)+f))*h)-(F(((x*c)+(y*d)+g))*j)-k+z)*n)+k
 new value of h => (F(((x*a)+(y*b)+f))*(-(F(((x*a)+(y*b)+f))*h)-(F(((x*c)+(y*d)+g))*j)-k+z)*n)+h
 
 new value of j => (F(((x*c)+(y*d)+g))*(-(F(((x*a)+(y*b)+f))*h)-(F(((x*c)+(y*d)+g))*j)-k+z)*n)+j
+```
+
+#### Example Demonstration 9 (fully connected neural network of 2 layers)
+```python
+from mathai import *
+
+# 2 layer fully connected neural network derivation using matrix calculus
+# capital letter denotes matrix or a function applying on a matrix. small letter usual variables and usual functions.
+
+# first layer
+w = parse("W") # weights - layer 1
+x = parse("X") # training input
+b = parse("B") # bias - layer 1
+z = TreeNode("f_wmul", [w,x])+b
+z = z.fx("F") # F is activation function
+
+# second layer
+v = parse("V") # weights - layer 2
+c = parse("c") # bias - layer 2
+o = TreeNode("f_wmul", [z,v])+c
+o = o.fx("f") # F is activation function
+
+# training output
+y = parse("y")
+
+# mean squared loss
+L = (o-y)**2/tree_form("d_2")
+L = matrix_solve(L)
+
+print(f"loss Function => {L}")
+print()
+
+# learning rate
+learning_rate = parse("n")
+
+# weights and biases to update using gradient descent
+bi_new = TreeNode("f_index", [b, parse("i")])
+wij_new = TreeNode("f_index", [TreeNode("f_index", [w, parse("i")]), parse("j")])
+vi_new = TreeNode("f_index", [v, parse("i")])
+c_new = c
+
+lst = {}
+for item in [bi_new, wij_new, vi_new, c_new]:
+    eq = item - learning_rate*diff2(TreeNode("f_pdif", [L, item])) # calculate new values of weight or bias using MathAi matrix calculus
+    eq = matrix_solve(eq)
+    lst[item] = eq
+
+for key, item in lst.items():
+    print(f"new value of {key} => {item}")
+    print()
+```
+
+#### Output
+```
+loss Function => ((f(((F(((W@X)+B))@V)+c))-y)^2)/2
+
+new value of B[i] => B[i]+((-f(((F(((W@X)+B))@V)+c))+y)*f'(((F(((W@X)+B))@V)+c))*(hadamard(F'(((W@X)+B)),cap(i))@V)*n)
+
+new value of W[i][j] => W[i][j]+((-f(((F(((W@X)+B))@V)+c))+y)*f'(((F(((W@X)+B))@V)+c))*(hadamard(F'(((W@X)+B)),(cap(i)@X[j]))@V)*n)
+
+new value of V[i] => V[i]+((-f(((F(((W@X)+B))@V)+c))+y)*f'(((F(((W@X)+B))@V)+c))*(cap(i)@F(((W@X)+B)))*n)
+
+new value of c => ((-f(((F(((W@X)+B))@V)+c))+y)*f'(((F(((W@X)+B))@V)+c))*n)+c
 ```
 
 ### Questions solved using god() function

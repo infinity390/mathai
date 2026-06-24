@@ -420,6 +420,15 @@ def vlist(eq):
     for child in eq.children:
         out += vlist(child)
     return list(sorted(list(set(out)), key=lambda x: int(x[2:])))
+def operation(op, lst):
+    if len(lst) == 0:
+        return None
+    s = lst[0]
+    if len(lst) > 1:
+        s = [s]+lst[1:]
+        return TreeNode(op, s)
+    else:
+        return s
 def product(lst):
     if lst == []:
         return tree_form("d_1")
@@ -506,7 +515,8 @@ def string_equation_helper(equation_tree):
         s = equation_tree.name[2:] + "'"*n + s
         equation_tree.children.pop(0)
     elif len(equation_tree.children) == 1 or\
-       equation_tree.name[2:] in ["zu", "max", "limitninf", "limitpinf", "subs", "try", "limit", "integrate", "exist", "forall", "pdif", "dif", "covariance", "sum"]:
+       equation_tree.name[2:] in ["cap2", "zu", "max", "limitninf", "limitpinf", "subs", "try", "limit",\
+                                  "integrate", "exist", "forall", "pdif", "dif", "covariance", "sum", "hadamard"]:
         s = equation_tree.name[2:] + s
     sign = {"f_mod":"%", "f_not":"~", "f_wadd":"+", "f_wmul":"@", "f_intersection":"&", "f_union":"|",\
             "f_exist":",", "f_forall":",", "f_sum":",","f_covariance": ",", "f_B":",", "f_imply":"->",\

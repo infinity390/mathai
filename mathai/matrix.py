@@ -334,6 +334,24 @@ def fold_wmul(root):
                 )
         result[node] = eq
     return result[root]
+def helper_matrix(eq):
+    if eq.name == "f_wmul":
+        if tree_form("d_0") in eq.children:
+            return tree_form("d_0")
+        out = eq.children
+        lst = []
+        for i in range(len(out)-1,-1,-1):
+            if out[i].name == "f_index" or "v_" not in str_form(out[i]):
+                lst.append(out.pop(i))
+        if len(out) >= 2:
+            for i in range(len(out)-2,-1,-1):
+                if out[i].name == "f_cap2":                    
+                    lst.append(TreeNode("f_index", [out[i+1], out[i].children[1]]))
+                    out[i] = out[i].children[0].fx("cap")
+                    out.pop(i+1)
+        lst = list(sorted(lst, key=str_form))
+        return TreeNode("f_wmul", lst+out)
+    return eq
 def _matrix_solve(eq):
     prev = None
     while prev != eq:
@@ -341,6 +359,7 @@ def _matrix_solve(eq):
         eq = flatten_tree(eq)
         eq = fold_wmul(eq)
         eq = simplify(eq)
+        eq = transform_dfs(eq, helper_matrix)
     return eq
 def matrix_solve(eq):
     return _matrix_solve(eq)
