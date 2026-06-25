@@ -221,6 +221,8 @@ def perfect_root(n, r):
             hi = mid - 1
     return False, None
 def frac(eq):
+    if not isinstance(eq, TreeNode):
+        return eq
     if eq.name[:2] == "d_":
         return Fraction(int(eq.name[2:]))
     if eq.name == "f_add":
@@ -314,6 +316,8 @@ def factor_generation(eq, prime=False):
                 output.append(child)
     return output
 def compute(eq):
+    if not isinstance(eq, TreeNode):
+        return eq
     if eq.children == []:
         if eq.name == "s_e":
             return math.e
@@ -515,7 +519,7 @@ def string_equation_helper(equation_tree):
         s = equation_tree.name[2:] + "'"*n + s
         equation_tree.children.pop(0)
     elif len(equation_tree.children) == 1 or\
-       equation_tree.name[2:] in ["cap2", "zu", "max", "limitninf", "limitpinf", "subs", "try", "limit",\
+       equation_tree.name[2:] in ["frobenius", "cap", "cap2", "zu", "max", "limitninf", "limitpinf", "subs", "try", "limit",\
                                   "integrate", "exist", "forall", "pdif", "dif", "covariance", "sum", "hadamard"]:
         s = equation_tree.name[2:] + s
     sign = {"f_mod":"%", "f_not":"~", "f_wadd":"+", "f_wmul":"@", "f_intersection":"&", "f_union":"|",\

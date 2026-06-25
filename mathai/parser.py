@@ -39,6 +39,7 @@ class Parser:
         ">=": 30,
         "+": 40,
         "-": 40,
+        "@": 50,
         "*": 50,
         "/": 50,
         "^": 60,
@@ -63,6 +64,7 @@ class Parser:
         "|": "f_or",
         "->": "f_imply",
         "<->": "f_equiv",
+        "@": "f_wmul"
     }
     FUNCTIONS = {
         "expect": "f_expect",

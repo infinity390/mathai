@@ -546,6 +546,8 @@ def simplify_h(eq):
 def simplify(eq, basic=True, break_factors=False):
     if eq is None:
         return None
+    if not isinstance(eq, TreeNode):
+        return eq
     eq = flatten_tree(eq)
     if basic:
         eq = convert_to_basic(eq)

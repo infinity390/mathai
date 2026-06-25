@@ -42,7 +42,7 @@ from .limit import limit1, limit2, limit0, limit3, limit4
 
 from .univariate_inequality import wavycurvy, absolute, domain, handle_sqrt, prepare, eq2range, range2eq2, simple_wavycurvy
 
-from .matrix import matrix_solve
+from .matrix import matrix_solve, transpose_matrix, mat_frob, mat_mul, mat_add, mat_hadamard
 
 from .base import *
 from .printeq import printeq_obj

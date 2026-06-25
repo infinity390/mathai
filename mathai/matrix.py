@@ -1,6 +1,7 @@
 import copy
 from .base import *
 from .simplify import simplify
+from .expand import expand
 ZERO = tree_form("d_0")
 ONE = tree_form("d_1")
 def tree_to_py(root):
@@ -105,6 +106,20 @@ def mat_add(A, B):
         ]
         for i in range(rows)
     ]
+def mat_hadamard(A, B):
+    if len(A) != len(B):
+        raise ValueError("Matrix dimension mismatch")
+    if len(A[0]) != len(B[0]):
+        raise ValueError("Matrix dimension mismatch")
+    rows = len(A)
+    cols = len(A[0])
+    return [
+        [
+            simplify(A[i][j] * B[i][j])
+            for j in range(cols)
+        ]
+        for i in range(rows)
+    ]
 def scalar_matrix(a, M):
     return [
         [
@@ -131,10 +146,12 @@ def mat_mul(A, B):
     for i in range(rows):
         row = []
         for j in range(cols):
-            expr = tree_form("d_0")
+            expr = 0
             for k in range(inner):
                 left = copy.deepcopy(A[i][k])
                 right = copy.deepcopy(B[k][j])
+                if isinstance(left, TreeNode) and isinstance(right, TreeNode):
+                    expr = frac_to_tree(expr)
                 expr = expr + (left * right)
             row.append(
                 simplify(expr)
@@ -200,6 +217,15 @@ def addition(left, right):
             mat_add(A, B)
         )
     return None
+def mat_frob(A, B):
+    out = mat_hadamard(A, B)
+    eq = out[0][0]
+    for i in range(len(out)):
+        for j in range(len(out[i])):
+            if i == 0 and j == 0:
+                continue
+            eq = eq + out[i][j]
+    return eq
 def transpose_matrix(A):
     rows = len(A)
     cols = len(A[0])
@@ -334,23 +360,51 @@ def fold_wmul(root):
                 )
         result[node] = eq
     return result[root]
+def contain_mat(eq):
+    if eq.name.startswith("v_") and int(eq.name[2:]) < 0:
+        return True
+    return any(contain_mat(child) for child in eq.children)
+def length_mat(eq):
+    p = []
+    q = []
+    if eq.name == "f_transpose":
+        a, b = length_mat(eq.children[0])
+        return b, a
+    if eq.name == "f_cap":
+        p.append(eq.children[0])
+        q.append(eq.children[1])
+    if eq.name == "f_add":
+        for child in eq.children:
+            if child.name.startswith("v_") and int(child.name[2:]) < 0:
+                p.append(child.fx("len"))
+                q.append(TreeNode("f_index", [child, tree_form("d_1")]).fx("len"))
+    if eq.name == "f_F":
+        x, y = length_mat(eq.children[0])
+        p += x
+        q += y
+    return list(set(p)), list(set(q))
+def is_scalar(eq):
+    if len([item for item in vlist(eq) if int(item[2:])<0]) == 0 and (not contain2(eq, "f_cap") or not contain2(eq, "f_cap2")):
+        return True
+    if eq.name == "f_wmul":
+        a = length_mat(eq.children[0])
+        b = length_mat(eq.children[-1])
+        if tree_form("d_1") in a[0] and tree_form("d_1") in b[1]:
+            return True
+    if eq.name == "f_index" and eq.children[0].name != "f_index" and length_mat(eq.children[0])[1]:
+        return True
+    if eq.name == "f_add":
+        return any(is_scalar(child) for child in eq.children)
+    return False
 def helper_matrix(eq):
     if eq.name == "f_wmul":
         if tree_form("d_0") in eq.children:
             return tree_form("d_0")
-        out = eq.children
-        lst = []
-        for i in range(len(out)-1,-1,-1):
-            if out[i].name == "f_index" or "v_" not in str_form(out[i]):
-                lst.append(out.pop(i))
-        if len(out) >= 2:
-            for i in range(len(out)-2,-1,-1):
-                if out[i].name == "f_cap2":                    
-                    lst.append(TreeNode("f_index", [out[i+1], out[i].children[1]]))
-                    out[i] = out[i].children[0].fx("cap")
-                    out.pop(i+1)
-        lst = list(sorted(lst, key=str_form))
-        return TreeNode("f_wmul", lst+out)
+        if tree_form("d_1") in eq.children:
+            out = [child for child in eq.children if child != tree_form("d_1")]
+            if out == []:
+                return tree_form("d_1")
+            return TreeNode("f_wmul", out)
     return eq
 def _matrix_solve(eq):
     prev = None
@@ -358,6 +412,7 @@ def _matrix_solve(eq):
         prev = eq
         eq = flatten_tree(eq)
         eq = fold_wmul(eq)
+        eq = simplify(eq)
         eq = simplify(eq)
         eq = transform_dfs(eq, helper_matrix)
     return eq
