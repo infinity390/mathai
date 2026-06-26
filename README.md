@@ -386,262 +386,34 @@ true
 #### Example Demonstration 8 (fully connected neural network to memorize OR data)
 ```python
 from mathai import *
-import copy
-import math
-import random
 
-# 2 layer fully connected neural network derivation using matrix calculus
-# capital letter denotes matrix or a function applying on a matrix. small letter usual variables and usual functions.
-
-# first layer
-w = parse("W") # weights - layer 1
-x = parse("X") # training input
-b = parse("B") # bias - layer 1
-z = TreeNode("f_wmul", [x, w])+b
-z = z.fx("F") # F is activation function
-
-# second layer
-v = parse("V") # weights - layer 2
-c = parse("C") # bias - layer 2
-o = TreeNode("f_wmul", [z, v])+c
-o = o.fx("F") # F is activation function
-
-# training output
-y = parse("Y")
-
-# mean squared loss
-L = TreeNode("f_wmul", [(o-y), (o-y).fx("transpose")])/tree_form("d_2")
-L = matrix_solve(L)
-
-print(f"loss Function => {L}")
-print()
-
-# learning rate
-learning_rate = parse("n")
-
-var_i = tree_form("v_11")
-
-# weights and biases as matrices
-bi_new = TreeNode("f_index", [TreeNode("f_index", [b, tree_form("d_1")]), parse("j")])
-wij_new = TreeNode("f_index", [TreeNode("f_index", [w, var_i]), parse("j")])
-vij_new = TreeNode("f_index", [TreeNode("f_index", [v, var_i]), parse("j")])
-ci_new = TreeNode("f_index", [TreeNode("f_index", [c, tree_form("d_1")]), parse("j")])
-
-lst = {}
-for item in [bi_new, wij_new, vij_new, ci_new]:
-    tmp = diff2(TreeNode("f_pdif", [L, item])) # for gradient calculation for doing gradient descent, use mathai.diff2()'s differentiation abilities
-    eq = item - TreeNode("f_wmul", [learning_rate,tmp]) # calculate new values of weight or bias using MathAi matrix calculus
-    eq = matrix_solve(eq) # simplify the expression
-    lst[item] = eq
-
-for key, item in lst.items():
-    print(f"new value of {key} => {item}")
-    print()
-
-# neural network getting trained on or data
-def zeros(a, b=None):
-    if b is not None:
-        arr = []
-        for i in range(a):
-            arr.append([])
-            for j in range(b):
-                arr[-1].append(0.0)
-        return arr
-    else:
-        return [0.0 for i in range(a)]
-def randos(a, b):
-    arr = []
-    for i in range(a):
-        arr.append([])
-        for j in range(b):
-            arr[-1].append(random.random())
-    return arr
-def shape(s):
-    return [len(s), len(s[0])]
-def auto_mul(a, b, addition, hadamard):
-    if not hadamard and shape(a)[1] == shape(b)[0] and not addition:
-        return mat_mul(a, b)
-    if tuple(shape(a)) == tuple(shape(b)) and (addition or hadamard):
-        if addition:
-            return mat_add(a, b)
-        else:
-            return mat_hadamard(a, b)
-    return None
-def prod_chain(lst_prod, addition, hadamard):
-    lst_prod_new = []
-    for item in lst_prod:
-        tmp = None
-        if isinstance(item, list):
-            tmp = item
-        elif isinstance(item, TreeNode):
-            tmp = [[compute(item)]]
-        elif isinstance(item, float):
-            tmp = [[item]]
-        else:
-            tmp = item
-        lst_prod_new.append(tmp)
-    lst_prod = lst_prod_new
-    result = lst_prod[0]
-    for x in lst_prod[1:]:
-        result = auto_mul(result, x, addition, hadamard)
-    return result
-def apply(arr, fx):
-    if isinstance(arr, list):
-        return [apply(item, fx) for item in arr]
-    elif isinstance(arr, float):
-        return fx(arr)
-    print("error")
-formula = {w:wij_new, v:vij_new, b:bi_new, c:ci_new}
-def var_fx(eq, var_value):
-    n = None
-    if eq.name.startswith("d_"):
-        n = int(eq.name[2:])-1
-    else:
-        n = var_value[eq]-1
-    return n
-def compute_ml(eq, var_value, active="sigmoid"):
-    if eq.name.startswith("d_"):
-        return [[float(int(eq.name[2:]))]]
-    elif eq.name == "f_pow" and eq.children[1] == tree_form("d_-1"):
-        return apply(compute_ml(eq.children[0], var_value), lambda x: 1/x)
-    elif eq.name == "f_pow" and eq.children[0] == tree_form("s_e"):
-        return apply(compute_ml(eq.children[1], var_value), lambda x: math.exp(x))
-    elif eq.name == "f_pow":
-        return [[compute_ml(eq.children[0], var_value)[0][0] ** compute_ml(eq.children[1], var_value)[0][0]]]
-    elif eq.name.startswith("v_") or eq.name == "f_index":
-        if eq.name == "f_index":
-            if eq.children[0].name == "f_index":
-                a, b = var_fx(eq.children[1], var_value), var_fx(eq.children[0].children[1], var_value)
-                tmp = var_value[eq.children[0].children[0]][b][a]
-                if int(eq.children[0].children[0].name[2:])<0:
-                    return tmp
-                return [[tmp]]
-            else:
-                tmp = var_value[eq.children[0]][var_fx(eq.children[1], var_value)]
-                if int(eq.children[0].name[2:]) < 0:
-                    return tmp
-                return [[tmp]]
-        else:
-            tmp = var_value[eq]
-            if int(eq.name[2:])<0:
-                return tmp
-            return [[tmp]]
-    elif eq.name == "f_len":
-        return len(compute_ml(eq.children[0], var_value))
-    elif eq.name == "f_add": # matrix addition is just like usual addition
-        return prod_chain([compute_ml(child, var_value) for child in eq.children], True, False)
-    elif eq.name in ["f_mul", "f_wmul"]: # wmul is matrix multiplication (not commutative) as opposed to mul
-        out = prod_chain([compute_ml(child, var_value) for child in eq.children], False, False)
-        return out
-    elif eq.name == "f_transpose":
-        return transpose_matrix(compute_ml(eq.children[0], var_value))
-    elif eq.name == "f_cap": # cap are kinds of matrices we get when we differentiate a matrix by one of its element
-        m = len(compute_ml(eq.children[0].children[0], var_value))
-        n = len(compute_ml(eq.children[1].children[0], var_value))
-        arr = zeros(m, n)
-        x = compute_ml(eq.children[2], var_value)
-        y = compute_ml(eq.children[3], var_value)
-        if isinstance(x, list):
-            x = int(x[0][0])
-        if isinstance(y, list):
-            y = int(y[0][0])
-        arr[x-1][y-1] = 1.0
-        return arr
-    elif eq.name in ["f_hadamard"]: # hadamard is element wise multiplication. being part of matrix calculus, it comes while using chain rule
-        return prod_chain([compute_ml(child, var_value) for child in eq.children], False, True)
-    elif eq.name in ["f_f", "f_F"]:
-        eq2 = None
-        ch = eq.children[0]
-        if active == "sigmoid":
-            eq2 = simplify(parse("1/(e^(-G)+1)")) # sigmoid activation function is taken here
-        if len(eq.children) == 2:
-            ch = eq.children[1]
-            for _ in range(int(eq.children[0].name[2:])):
-                eq2 = simplify(diff(eq2, parse("G").name)) # sigmoid's derivative will be automatically calculated when required
-        out = compute_ml(ch, var_value)
-        if eq.name == "f_F":
-            new_child = []
-            for item in out:
-                new_child.append([])
-                for item2 in item:
-                    new_var = copy.deepcopy(var_value)
-                    new_var[parse("G")] = [[item2]]
-                    new_child[-1].append(compute_ml(eq2, new_var)[0][0])
-            return new_child
-        else:
-            print("error")
-    else:
-        print("error")
-middle_layer = 3
-var_value ={}
-var_value[w] = randos(2,middle_layer)
-var_value[v] = randos(middle_layer,1)
-var_value[b] = randos(1,middle_layer)
-var_value[c] = randos(1,1)
+nn = NeuralNetwork([2,3,1], [0,1]).model()
 train_x = [[0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0]]
 train_y = [[0.0],[1.0],[1.0],[1.0]]
-for i in range(25):
-    for j in range(len(train_x)):
-        var_value[x] = [train_x[j]]
-        var_value[y] = [train_y[j]]
-        var_value[learning_rate] = 12
-        new_value = copy.deepcopy(var_value)
-        for item in [b,c,v,w]:
-            for k in range(len(var_value[item])):
-                for m in range(len(var_value[item][k])):
-                    var_value[var_i] = k+1
-                    var_value[parse("j")] = m+1
-                    out = compute_ml(lst[formula[item]], copy.deepcopy(var_value)) # backpropagation using the formulas MathAi already derived
-                    new_value[item][k][m] = out[0][0]
-        var_value = copy.deepcopy(new_value)
-    print(f"{i+1} epoches completed")
-for i in range(len(train_x)):
-    var_value[x] = [train_x[i]]
-    print(compute_ml(o, copy.deepcopy(var_value)))
+nn.train(train_x, train_y, 12, 100)
+for item in train_x:
+    print(nn.predict(item))
 ```
 
 #### Output
 
 ```
-loss Function => ((F(((F(((X@W)+B))@V)+C))-Y)@transpose((F(((F(((X@W)+B))@V)+C))-Y)))/2
-
-new value of B[1][j] => B[1][j]-(n@((((F(((F(((X@W)+B))@V)+C))-Y)@transpose(hadamard(F'(((F(((X@W)+B))@V)+C)),(hadamard(F'(((X@W)+B)),cap(len(B),len(B[1]),1,j))@V))))+(hadamard(F'(((F(((X@W)+B))@V)+C)),(hadamard(F'(((X@W)+B)),cap(len(B),len(B[1]),1,j))@V))@transpose((F(((F(((X@W)+B))@V)+C))-Y))))/2))
-
-new value of W[i][j] => W[i][j]-(n@((((F(((F(((X@W)+B))@V)+C))-Y)@transpose(hadamard(F'(((F(((X@W)+B))@V)+C)),(hadamard(F'(((X@W)+B)),(X@cap(len(W),len(W[1]),i,j)))@V))))+(hadamard(F'(((F(((X@W)+B))@V)+C)),(hadamard(F'(((X@W)+B)),(X@cap(len(W),len(W[1]),i,j)))@V))@transpose((F(((F(((X@W)+B))@V)+C))-Y))))/2))
-
-new value of V[i][j] => V[i][j]-(n@((((F(((F(((X@W)+B))@V)+C))-Y)@transpose(hadamard(F'(((F(((X@W)+B))@V)+C)),(F(((X@W)+B))@cap(len(V),len(V[1]),i,j)))))+(hadamard(F'(((F(((X@W)+B))@V)+C)),(F(((X@W)+B))@cap(len(V),len(V[1]),i,j)))@transpose((F(((F(((X@W)+B))@V)+C))-Y))))/2))
-
-new value of C[1][j] => C[1][j]-(n@((((F(((F(((X@W)+B))@V)+C))-Y)@transpose(hadamard(F'(((F(((X@W)+B))@V)+C)),cap(len(C),len(C[1]),1,j))))+(hadamard(F'(((F(((X@W)+B))@V)+C)),cap(len(C),len(C[1]),1,j))@transpose((F(((F(((X@W)+B))@V)+C))-Y))))/2))
-
-1 epoches completed
-2 epoches completed
-3 epoches completed
-4 epoches completed
-5 epoches completed
-6 epoches completed
-7 epoches completed
-8 epoches completed
-9 epoches completed
-10 epoches completed
-11 epoches completed
-12 epoches completed
-13 epoches completed
-14 epoches completed
-15 epoches completed
-16 epoches completed
-17 epoches completed
-18 epoches completed
-19 epoches completed
-20 epoches completed
-21 epoches completed
-22 epoches completed
-23 epoches completed
-24 epoches completed
-25 epoches completed
-[[0.08872803596556583]]
-[[0.9681196305489304]]
-[[0.9514117727055921]]
-[[0.9911104462818031]]
+epoches done 1/100
+epoches done 2/100
+epoches done 3/100
+epoches done 4/100
+epoches done 5/100
+epoches done 6/100
+epoches done 7/100
+...
+epoches done 97/100
+epoches done 98/100
+epoches done 99/100
+epoches done 100/100
+[[0.04163111257435876]]
+[[0.9787698838661549]]
+[[0.9764820916626628]]
+[[0.9879487032722065]]
 ```
 
 ### Questions solved using god() function

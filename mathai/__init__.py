@@ -9,7 +9,9 @@ from .decision import god, trig7
 
 from .expand import expand
 
-from .parser import parse
+from .ml import NeuralNetwork
+
+from .parser import parse, remove_extra_brackets
 
 from .simplify import simplify, other_node, multiply_node, addition_node
 
@@ -42,7 +44,7 @@ from .limit import limit1, limit2, limit0, limit3, limit4
 
 from .univariate_inequality import wavycurvy, absolute, domain, handle_sqrt, prepare, eq2range, range2eq2, simple_wavycurvy
 
-from .matrix import matrix_solve, transpose_matrix, mat_frob, mat_mul, mat_add, mat_hadamard
+from .matrix import matrix_solve
 
 from .base import *
 from .printeq import printeq_obj
