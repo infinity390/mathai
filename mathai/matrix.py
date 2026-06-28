@@ -217,15 +217,6 @@ def addition(left, right):
             mat_add(A, B)
         )
     return None
-def mat_frob(A, B):
-    out = mat_hadamard(A, B)
-    eq = out[0][0]
-    for i in range(len(out)):
-        for j in range(len(out[i])):
-            if i == 0 and j == 0:
-                continue
-            eq = eq + out[i][j]
-    return eq
 def transpose_matrix(A):
     rows = len(A)
     cols = len(A[0])
@@ -406,15 +397,24 @@ def helper_matrix(eq):
                 return tree_form("d_1")
             return TreeNode("f_wmul", out)
     return eq
-def _matrix_solve(eq):
+def _matrix_solve2(eq):
     prev = None
     while prev != eq:
         prev = eq
         eq = flatten_tree(eq)
         eq = fold_wmul(eq)
         eq = simplify(eq)
+        eq = transform_dfs(eq, helper_matrix)
+    return eq
+def _matrix_solve(eq):
+    prev = None
+    while prev != eq:
+        prev = eq
+        eq = flatten_tree(eq)
         eq = simplify(eq)
         eq = transform_dfs(eq, helper_matrix)
     return eq
+def matrix_solve2(eq):
+    return _matrix_solve2(eq)
 def matrix_solve(eq):
     return _matrix_solve(eq)

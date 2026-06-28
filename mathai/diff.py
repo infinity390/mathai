@@ -20,6 +20,8 @@ def helper(eq):
         if d ==2 and eq.children[1].children[0].children[0] == eq.children[0]:
             return TreeNode("f_cap", [eq.children[0].fx("len"), TreeNode("f_index", [eq.children[0], tree_form("d_1")]).fx("len"), eq.children[1].children[0].children[1], eq.children[1].children[1]])
     if name in ["f_dif", "f_pdif"]:
+        if eq.children[0].name == "f_list":
+            return TreeNode(name, [eq.children[0].children[0], eq.children[1]]).fx("list")
         if eq.children[0].name == "f_transpose":
             return TreeNode(name, [eq.children[0].children[0], eq.children[1]]).fx("transpose")
         if eq.children[0].name == "f_add":
@@ -54,6 +56,9 @@ def helper(eq):
             return tree_form("d_1")
         if name == "f_pdif" and not contain(eq.children[0], eq.children[1]) and not mat:
             return tree_form("d_0")
+        if eq.children[0].name == "f_tanh":
+            d =  TreeNode(name, [eq.children[0].children[0], eq.children[1]])
+            return tree_form("d_1") - eq.children[0]**2
         if eq.children[0].name == "f_sin":
             eq.children[0].name = "f_cos"
             d =  TreeNode(name, [eq.children[0].children[0], eq.children[1]])
