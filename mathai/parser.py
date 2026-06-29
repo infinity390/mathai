@@ -67,6 +67,8 @@ class Parser:
         "@": "f_wmul"
     }
     FUNCTIONS = {
+        "f_wadd":"wadd",
+        "f_hadamard":"hadamard",
         "expect": "f_expect",
         "zu": "f_zu",
         "list": "f_list",

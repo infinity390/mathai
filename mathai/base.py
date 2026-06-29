@@ -85,7 +85,7 @@ class TreeNode:
             children = []
         children = copy.deepcopy(children)
         self.name = name
-        if name in "f_add f_mul f_or f_and".split(" "):
+        if name in "f_add f_mul f_or f_and f_hadamard f_wadd".split(" "):
             keyed = [(str_form(c), c) for c in children]
             self.children = [c for _, c in sorted(keyed)]
         else:
@@ -460,7 +460,7 @@ def flatten_tree_h(node):
         return None
     if not node.children:
         return node
-    if node.name in ["f_add", "f_mul", "f_and", "f_or", "f_wmul"]:
+    if node.name in ["f_add", "f_mul", "f_and", "f_or", "f_wmul", "f_hadamard", "f_wadd"]:
         merged_children = []
         for child in node.children:
             if child.name == node.name:
@@ -519,10 +519,10 @@ def string_equation_helper(equation_tree):
         s = equation_tree.name[2:] + "'"*n + s
         equation_tree.children.pop(0)
     elif len(equation_tree.children) == 1 or\
-       equation_tree.name[2:] in ["frobenius", "cap", "cap2", "zu", "max", "limitninf", "limitpinf", "subs", "try", "limit",\
+       equation_tree.name[2:] in ["cap", "wadd", "zu", "max", "limitninf", "limitpinf", "subs", "try", "limit",\
                                   "integrate", "exist", "forall", "pdif", "dif", "covariance", "sum", "hadamard"]:
         s = equation_tree.name[2:] + s
-    sign = {"f_mod":"%", "f_not":"~", "f_wadd":"+", "f_wmul":"@", "f_intersection":"&", "f_union":"|",\
+    sign = {"f_mod":"%", "f_not":"~", "f_wmul":"@", "f_intersection":"&", "f_union":"|",\
             "f_exist":",", "f_forall":",", "f_sum":",","f_covariance": ",", "f_B":",", "f_imply":"->",\
             "f_ge":">=", "f_le":"<=", "f_gt":">", "f_lt":"<", "f_cosec":"?" , "f_equiv": "<->", "f_sec":"?",\
             "f_cot": "?", "f_dot": ".", "f_transpose":"?", "f_exp":"?", "f_abs":"?", "f_log":"?", "f_and":"&",\

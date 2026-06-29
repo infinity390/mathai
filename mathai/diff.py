@@ -16,19 +16,26 @@ def helper(eq):
         if not contain(eq.children[0], v) and name == "f_pdif":
             return tree_form("d_0")
         if eq.children[1].children[0] == eq.children[0]:
-            return TreeNode("f_cap", [tree_form("d_1"), eq.children[0].fx("len"), tree_form("d_1"), eq.children[1].children[1]])
+            return TreeNode("f_cap", [tree_form("d_1"), eq.children[0].fx("len"), tree_form("d_0"), eq.children[1].children[1], tree_form("d_1")])
         if d ==2 and eq.children[1].children[0].children[0] == eq.children[0]:
-            return TreeNode("f_cap", [eq.children[0].fx("len"), TreeNode("f_index", [eq.children[0], tree_form("d_1")]).fx("len"), eq.children[1].children[0].children[1], eq.children[1].children[1]])
+            return TreeNode("f_cap", [eq.children[0].fx("len"),\
+                                      TreeNode("f_index", [eq.children[0], tree_form("d_0")]).fx("len"),\
+                                      eq.children[1].children[0].children[1], eq.children[1].children[1], tree_form("d_1")])
     if name in ["f_dif", "f_pdif"]:
         if eq.children[0].name == "f_list":
-            return TreeNode(name, [eq.children[0].children[0], eq.children[1]]).fx("list")
+            return TreeNode("f_list", [TreeNode(name, [child, eq.children[1]]) for child in eq.children[0].children])
+        
         if eq.children[0].name == "f_transpose":
             return TreeNode(name, [eq.children[0].children[0], eq.children[1]]).fx("transpose")
-        if eq.children[0].name == "f_add":
-            return summation([TreeNode(name, [child, eq.children[1]]) for child in eq.children[0].children])
-        if eq.children[0].name in ["f_mul", "f_wmul"]:
+        
+        if eq.children[0].name in ["f_add", "f_wadd"]:
+            return operation(eq.children[0].name, [TreeNode(name, [child, eq.children[1]]) for child in eq.children[0].children])
+        if eq.children[0].name in ["f_mul", "f_wmul", "f_hadamard"]:
             op = eq.children[0].name
-            tmp = summation([
+            op2 = "f_wadd"
+            if op == "f_mul":
+                op2 = "f_add"
+            tmp = operation(op2, [
                 operation(
                     op,
                     [
@@ -50,15 +57,12 @@ def helper(eq):
         if eq.children[0].name == "f_pow":
             a, b = eq.children
             return a**b * ((b/a) * TreeNode(name, [a, eq.children[1]]) + a.fx("log") * TreeNode(name, [b, eq.children[1]]))
-        if "v_" not in str_form(eq.children[0]):
-            return tree_form("d_0")
-        if eq.children[0] == eq.children[1] and not mat:
+
+        if eq.children[0] == eq.children[1]:
             return tree_form("d_1")
         if name == "f_pdif" and not contain(eq.children[0], eq.children[1]) and not mat:
             return tree_form("d_0")
-        if eq.children[0].name == "f_tanh":
-            d =  TreeNode(name, [eq.children[0].children[0], eq.children[1]])
-            return tree_form("d_1") - eq.children[0]**2
+        
         if eq.children[0].name == "f_sin":
             eq.children[0].name = "f_cos"
             d =  TreeNode(name, [eq.children[0].children[0], eq.children[1]])
@@ -82,11 +86,8 @@ def helper(eq):
         if eq.children[0].name == "f_arctan":
             d =  TreeNode(name, [eq.children[0].children[0], eq.children[1]])
             return d/(tree_form("d_1")+eq.children[0].children[0]*eq.children[0].children[0])
-        if eq.children[0].name.startswith("f_") and len(eq.children[0].name) == 3:
-            op = "f_mul"
-            if eq.children[0].name[2].isupper():
-                if contain2(eq.children[1], "f_index"):
-                    op = "f_hadamard"               
+        if eq.children[0].name in ["f_F", "f_G", "f_sigmoid"]:
+            op = "f_hadamard"               
             if len(eq.children[0].children) == 1:
                 a = TreeNode(eq.children[0].name, [tree_form("d_1"), eq.children[0].children[0]])
                 b = TreeNode(name, [eq.children[0].children[0], eq.children[1]])
@@ -99,7 +100,7 @@ def helper(eq):
 def diff2(eq):
     if eq is None:
         return None
-    return dowhile(eq, lambda x: simplify(transform_dfs(x, helper)))
+    return dowhile(eq, lambda x: transform_dfs(x, helper))
 def diff(equation, var="v_0"):
     def diffeq(eq):
         eq = simplify(eq)

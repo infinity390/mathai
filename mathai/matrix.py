@@ -351,51 +351,35 @@ def fold_wmul(root):
                 )
         result[node] = eq
     return result[root]
-def contain_mat(eq):
-    if eq.name.startswith("v_") and int(eq.name[2:]) < 0:
-        return True
-    return any(contain_mat(child) for child in eq.children)
-def length_mat(eq):
-    p = []
-    q = []
-    if eq.name == "f_transpose":
-        a, b = length_mat(eq.children[0])
-        return b, a
-    if eq.name == "f_cap":
-        p.append(eq.children[0])
-        q.append(eq.children[1])
-    if eq.name == "f_add":
-        for child in eq.children:
-            if child.name.startswith("v_") and int(child.name[2:]) < 0:
-                p.append(child.fx("len"))
-                q.append(TreeNode("f_index", [child, tree_form("d_1")]).fx("len"))
-    if eq.name == "f_F":
-        x, y = length_mat(eq.children[0])
-        p += x
-        q += y
-    return list(set(p)), list(set(q))
-def is_scalar(eq):
-    if len([item for item in vlist(eq) if int(item[2:])<0]) == 0 and (not contain2(eq, "f_cap") or not contain2(eq, "f_cap2")):
-        return True
-    if eq.name == "f_wmul":
-        a = length_mat(eq.children[0])
-        b = length_mat(eq.children[-1])
-        if tree_form("d_1") in a[0] and tree_form("d_1") in b[1]:
-            return True
-    if eq.name == "f_index" and eq.children[0].name != "f_index" and length_mat(eq.children[0])[1]:
-        return True
-    if eq.name == "f_add":
-        return any(is_scalar(child) for child in eq.children)
-    return False
+
 def helper_matrix(eq):
-    if eq.name == "f_wmul":
+    if eq.name == "f_sigmoid" and len(eq.children) == 2 and eq.children[0].name == "d_1":
+        eq2 = eq.children[1].fx("sigmoid")
+        eq3 = TreeNode("f_wadd", [tree_form("d_1") , TreeNode("f_hadamard", [tree_form("d_-1"), eq2])])
+        return TreeNode("f_hadamard", [eq2, eq3])
+    if eq.name == "f_transpose" and eq.children[0].name == "f_cap":
+        eq2 = eq.children[0]
+        return TreeNode("f_cap", [eq2.children[1], eq2.children[0], eq2.children[3], eq2.children[2], eq2.children[4]])
+    if eq.name in ["f_hadamard", "f_wmul"]:
         if tree_form("d_0") in eq.children:
             return tree_form("d_0")
-        if tree_form("d_1") in eq.children:
+        if tree_form("d_1") in eq.children and eq.name == "f_hadamard":
             out = [child for child in eq.children if child != tree_form("d_1")]
             if out == []:
                 return tree_form("d_1")
-            return TreeNode("f_wmul", out)
+            if len(out) == 1:
+                return out[0]
+            return TreeNode(eq.name, out)
+    if eq.name in ["f_wadd"]:
+        if tree_form("d_0") in eq.children:
+            out = [child for child in eq.children if child != tree_form("d_0")]
+            if out == []:
+                return tree_form("d_0")
+            if len(out) == 1:
+                return out[0]
+            return TreeNode(eq.name, out)
+    if eq.name == "f_wmul" and tree_form("d_0") in eq.children:
+        return tree_form("d_0")
     return eq
 def _matrix_solve2(eq):
     prev = None
@@ -406,15 +390,8 @@ def _matrix_solve2(eq):
         eq = simplify(eq)
         eq = transform_dfs(eq, helper_matrix)
     return eq
-def _matrix_solve(eq):
-    prev = None
-    while prev != eq:
-        prev = eq
-        eq = flatten_tree(eq)
-        eq = simplify(eq)
-        eq = transform_dfs(eq, helper_matrix)
-    return eq
 def matrix_solve2(eq):
     return _matrix_solve2(eq)
 def matrix_solve(eq):
-    return _matrix_solve(eq)
+    fx = lambda x: transform_dfs(simplify(x), helper_matrix)
+    return dowhile(eq, fx)

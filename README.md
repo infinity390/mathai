@@ -383,13 +383,31 @@ print(eq)
 true
 ```
 
-#### Example Demonstration 8 (fully connected neural network to memorize OR data)
+#### Example Demonstration 8 (neural networks)
 ```python
 from mathai import *
-
-nn = NeuralNetwork([2,3,1], [0,1]).model()
+print("fully connected neural network")
+print("------------------------------")
+nn = NeuralNetwork([2,4,4,2], [0,1]).model("dense")
 train_x = [[0.0,0.0],[1.0,0.0],[0.0,1.0],[1.0,1.0]]
-train_y = [[0.0],[1.0],[1.0],[1.0]]
+train_y = [[0.0,0.0],[0.0,1.0],[0.0,1.0],[0.0,1.0]]
+nn.train(train_x, train_y, 12, 1000)
+for item in train_x:
+    print(nn.predict(item))
+print()
+print("vanilla recurrent neural network")
+print("--------------------------------")
+nn = NeuralNetwork([1,2,6,2], [0,1]).model("rnn_vanilla")
+a_x = [[0.0,1.0]]
+b_x = [[1.0,0.0]]
+c_x = [[1.0,1.0]]
+d_x = [[0.0,0.0]]
+a_y = [[0.0,1.0],[0.0,1.0]]
+b_y = [[0.0,1.0],[0.0,1.0]]
+c_y = [[0.0,1.0],[0.0,1.0]]
+d_y = [[0.0,1.0],[0.0,1.0]]
+train_x = [a_x, b_x, c_x, d_x]
+train_y = [a_y, b_y, c_y, d_y]
 nn.train(train_x, train_y, 12, 100)
 for item in train_x:
     print(nn.predict(item))
@@ -398,22 +416,43 @@ for item in train_x:
 #### Output
 
 ```
+fully connected neural network
+------------------------------
+epoches done 1/1000
+epoches done 101/1000
+epoches done 201/1000
+epoches done 301/1000
+epoches done 401/1000
+epoches done 501/1000
+epoches done 601/1000
+epoches done 701/1000
+epoches done 801/1000
+epoches done 901/1000
+training done.
+
+[0.0037306204061867266, 0.005398577257368551]
+[0.0007635297408647409, 0.9971510602912754]
+[0.0007963467649003035, 0.9957131481137446]
+[0.0007161288332549299, 0.9982166101283988]
+
+vanilla recurrent neural network
+--------------------------------
 epoches done 1/100
-epoches done 2/100
-epoches done 3/100
-epoches done 4/100
-epoches done 5/100
-epoches done 6/100
-epoches done 7/100
-...
-epoches done 97/100
-epoches done 98/100
-epoches done 99/100
-epoches done 100/100
-[[0.04163111257435876]]
-[[0.9787698838661549]]
-[[0.9764820916626628]]
-[[0.9879487032722065]]
+epoches done 11/100
+epoches done 21/100
+epoches done 31/100
+epoches done 41/100
+epoches done 51/100
+epoches done 61/100
+epoches done 71/100
+epoches done 81/100
+epoches done 91/100
+training done.
+
+[[0.008555551654410456, 0.9953778465719261], [0.00844993615813844, 0.9957735785196834]]
+[[0.008776298924752195, 0.9935120169523202], [0.00876084805740273, 0.9933120044691713]]
+[[0.008776298924752195, 0.9955659880540534], [0.00876084805740273, 0.9959375141857263]]
+[[0.008555551654410456, 0.9931976494577134], [0.00844993615813844, 0.9929909573371926]]
 ```
 
 ### Questions solved using god() function

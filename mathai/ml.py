@@ -6,6 +6,7 @@ from .base import *
 import random
 import copy
 import math
+
 def zeros(a, b):
     arr = []
     for i in range(a):
@@ -21,7 +22,9 @@ def randos(low,high,a, b):
             tmp = random.uniform(low,high)
             arr[-1].append(tmp)
     return arr
-def hadamard(A, B):
+def hadamard_h(A, B):
+    assert len(A)==len(B)
+    assert len(A[0])==len(B[0])
     rows = len(A)
     cols = len(A[0])
     tmp = [
@@ -32,6 +35,18 @@ def hadamard(A, B):
         for i in range(rows)
     ]
     return tmp
+def hadamard(*lst_prod):
+    result = lst_prod[0]
+    for x in lst_prod[1:]:
+        if isinstance(x, list) and isinstance(result, list):
+            result = hadamard_h(result, x)
+        elif isinstance(x, list):
+            result = apply(x, lambda y: y*result)
+        elif isinstance(result, list):
+            result = apply(result, lambda y: y*x)
+        else:
+            result = result * x
+    return result
 def matadd_h(A, B):
     rows = len(A)
     cols = len(A[0])
@@ -43,6 +58,7 @@ def matadd_h(A, B):
         for i in range(rows)
     ]
 def matmul_h(A, B):
+    assert len(A[0])==len(B)
     rows = len(A)
     inner = len(A[0])
     cols = len(B[0])
@@ -59,16 +75,21 @@ def matmul_h(A, B):
         C.append(row)
     return C
 def matmul(*lst_prod):
-    lst_prod = list(lst_prod)
     result = lst_prod[0]
     for x in lst_prod[1:]:
         result = matmul_h(result, x)
     return result
 def matadd(*lst_prod):
-    lst_prod = list(lst_prod)
     result = lst_prod[0]
     for x in lst_prod[1:]:
-        result = matadd_h(result, x)
+        if isinstance(x, list) and isinstance(result, list):
+            result = matadd_h(result, x)
+        elif isinstance(x, list):
+            result = apply(x, lambda y: y+result)
+        elif isinstance(result, list):
+            result = apply(result, lambda y: y+x)
+        else:
+            result = result + x
     return result
 def transpose(A):
     rows = len(A)
@@ -83,104 +104,68 @@ def transpose(A):
 def shape(s):
     if not isinstance(s[0], list):
         return [len(s)]
-    return [len(s), len(s[0])]
-def multiply(*lst_prod):
-    lst_prod = list(lst_prod)
-    result = lst_prod[0]
-    for x in lst_prod[1:]:
-        if isinstance(result, list) and isinstance(x, list):
-            result = hadamard(result, x)
-        elif isinstance(result, list):
-            result = apply(result, lambda y: y*x)
-        elif isinstance(x, list):
-            result = apply(x, lambda y: y*result)
-        else:
-            result = result * x
-    return result
+    return [len(s), len(s[0])]  
 def apply(arr, fx):
     if isinstance(arr, list):
         return [apply(item, fx) for item in arr]
     return fx(arr)
 def exp(arg):
     return apply(arg, lambda x: math.exp(x))
+def inv(arg):
+    return apply(arg, lambda x: 1.0/x)
 def tanh(arg):
     return apply(arg, lambda x: math.tanh(x))
-def power(a, b):
-    return apply(a, lambda x: math.pow(x,b))
-def index_func(eq, s):
-    if eq.name.startswith("d_"):
-        return str(int(eq.name[2:])-1)
-    return s+"-1"
-def gen(eq, w, active):
-    if eq == parse("X"):
-        return "X"
-    if eq == parse("Y"):
-        return "Y"
-    if eq == parse("W"):
-        return "[[W]]"
-    if eq == parse("n"):
-        return "[[n]]"
-    if isinstance(eq, list) or eq.name == "f_list":
-        return "["+",".join([gen(child, w, active) for child in eq.children])+"]"
-    if eq.name == "f_transpose":
-        return f"transpose({gen(eq.children[0], w, active)})"
-    if eq.name == "f_index":
-        if eq.children[0].name == "f_index":
-            d = gen(eq.children[0].children[0], w, active)
-            return f"[[{d}[{index_func(eq.children[0].children[1], 'i')}][{index_func(eq.children[1], 'j')}]]]"
-        else:
-            d = gen(eq.children[0], w, active)
-            return f"[{d}[{index_func(eq.children[1], 'i')}]]"
-    if eq.name == "f_cap":
-        dim = eq.children[0].children[0]
-        d = gen(dim, w, active)
-        return f"cap(shape({d})[0],shape({d})[1],{index_func(eq.children[2], 'i')},{index_func(eq.children[3], 'j')})"
-    if eq.name == "f_add":
-        return "matadd("+",".join([gen(child, w, active) for child in eq.children])+")"
-    if eq.name == "f_wmul":
-        return "matmul("+",".join([gen(child, w, active) for child in eq.children])+")"
-    if eq.name in ["f_mul"]:
-        return "multiply("+",".join([gen(child, w, active) for child in eq.children])+")"
-    if eq.name in ["f_tanh"]:
-        return "tanh("+",".join([gen(child, w, active) for child in eq.children])+")"
-    if eq.name in ["f_hadamard"]:
-        return "hadamard("+",".join([gen(child, w, active) for child in eq.children])+")"
-    if eq.name == "f_pow" and eq.children[0] == tree_form("s_e"):
-        return f"exp({gen(eq.children[1], w, active)})"
-    if eq.name == "f_pow" and eq.children[1].name.startswith("d_"):
-        n = int(eq.children[1].name[2:])
-        return f"power({gen(eq.children[0], w, active)},{n})"
-    if eq.name.startswith("v_") and eq in w:
-        return f"w[{w.index(eq)}]"
-    if eq.name in ["f_G", "f_F"]:
-        child = None
-        orig = copy.deepcopy(active)
-        active = active[eq.name[2:]]
-        if len(eq.children) == 2:
-            for _ in range(int(eq.children[0].name[2:])):
-                active = diff(active, parse("Z").name)
-            child = eq.children[1]
-        else:
-            child = eq.children[0]
-        return gen(simplify(replace(active, parse("Z"), child)), w, orig)
-    if eq.name.startswith("d_"):
-        return f"[[{eq.name[2:]}]]"
+def sigmoid(arg):
+    return apply(arg, lambda x: 1.0/(1.0 + math.exp(-x) ))
 def gen2(eq, w, active):
-    tmp = gen(eq, w, active)
-    tmp = remove_extra_brackets(tmp)
-    return tmp
-def cap(a, b, x, y):
+    def from_treenode(eq):
+        nonlocal w, active
+        
+        alter = {"f_wadd":"matadd", "f_transpose":"transpose", "f_wmul":"matmul", "f_hadamard":"hadamard", "f_cap":"cap", "f_sigmoid":"sigmoid"}
+        if eq.name in alter.keys():
+            return alter[eq.name]+"("+",".join([from_treenode(child) for child in eq.children])+")"
+
+        alter2 = {"f_add":"+", "f_pow":"**", "f_mul":"+"}
+        if eq.name in alter2.keys():
+            return alter2[eq.name].join([from_treenode(child) for child in eq.children])
+        
+        if eq.name == "f_index":
+            return from_treenode(eq.children[0])+"["+from_treenode(eq.children[1])+"]"
+
+        if eq in w:
+            return f"w[{w.index(eq)}]"
+        
+        if eq.name in ["f_F", "f_G"]:
+            child = None
+            active2 = copy.deepcopy(active)
+            active2 = active2[eq.name[2:]]
+            
+            if len(eq.children) == 2:
+                for _ in range(int(eq.children[0].name[2:])):
+                    active2 = diff2(TreeNode("f_dif", [active2, parse("Z")]))
+                child = eq.children[1]
+            else:
+                child = eq.children[0]
+                
+            return from_treenode(matrix_solve(replace(active2, parse("Z"), child)))
+        
+        if eq.name == "f_len":
+            return "len("+from_treenode(eq.children[0])+")"
+        
+        return str(eq)
+    return from_treenode(eq)
+def cap(a, b, x, y, val):
     arr = zeros(a,b)
-    arr[x][y] = 1
+    arr[x][y] = val
     return arr
+
 class NeuralNetwork:
     def __init__(self, struct, rand_range=None, active=None):
         self.struct = struct
         self.update_fx = {}
         self.var_list = [tree_form(f"v_-{i}") for i in range(1,26+1-4) if tree_form(f"v_-{i}") not in [parse("G"), parse("F")]]
         if active is None:
-            eq = simplify(parse("1/(e^(-Z)+1)"))
-            self.active = {"F":eq, "G":eq}
+            self.active = {"F":parse("sigmoid(Z)"), "G":parse("sigmoid(Z)")}
         else:
             self.active = active
         self.o = None
@@ -210,11 +195,17 @@ class NeuralNetwork:
         for i in range(len(self.struct)-1):
             lst_w.append(self.var_list.pop(0))
             lst_b.append(self.var_list.pop(0))
-            lst_z.append((TreeNode("f_wmul", [lst_z[-1], lst_w[-1]])+lst_b[-1]))
+            eq = TreeNode("f_wmul", [lst_z[-1], lst_w[-1]])
+            eq = TreeNode("f_wadd", [eq, lst_b[-1]])
+            lst_z.append(eq)
             lst_z[-1] = matrix_solve(lst_z[-1].fx("F"))
         self.lst_w = lst_w + lst_b
         self.o = lst_z[-1]
-        L = TreeNode("f_wmul", [self.o-y,(self.o-y).fx("transpose")])/tree_form("d_2")
+        eq = TreeNode("f_hadamard", [tree_form("d_-1"), y])
+        eq = TreeNode("f_wadd", [self.o, eq])
+        eq = copy.deepcopy(eq)
+        L = TreeNode("f_wmul", [eq,eq.fx("transpose")])
+        L = TreeNode("f_hadamard", [L, tree_form("d_2")**tree_form("d_-1")])
         L = matrix_solve(L)
         gradient = []
         for i in range(2):
@@ -223,9 +214,10 @@ class NeuralNetwork:
                 if i == 0:
                     item = TreeNode("f_index", [TreeNode("f_index", [item, tree_form("v_11")]), parse("j")])
                 else:
-                    item = TreeNode("f_index", [TreeNode("f_index", [item, tree_form("d_1")]), parse("j")])
+                    item = TreeNode("f_index", [TreeNode("f_index", [item, tree_form("d_0")]), parse("j")])
                 tmp = diff2(TreeNode("f_pdif", [L, item]))
-                eq = parse("W") - TreeNode("f_wmul", [parse("n"),tmp])
+                eq = TreeNode("f_hadamard", [tree_form("d_-1").fx("list").fx("list"), parse("n").fx("list").fx("list"),tmp])
+                eq = TreeNode("f_wadd", [parse("z").fx("list").fx("list"), eq])
                 eq = matrix_solve(eq)
                 gradient.append(eq)
         self.gradient = gradient
@@ -250,13 +242,21 @@ class NeuralNetwork:
         y = parse("Y")
         lst_o = []
         for i in range(self.struct[3]):
-            eq = TreeNode("f_wmul", [TreeNode("f_index",[x,tree_form(f"d_{i+1}")]) , Wxh]) + TreeNode("f_wmul", [lst_Hht[i], Whh]) + Bh
+            eq = TreeNode("f_wadd", [TreeNode("f_wmul", [TreeNode("f_index",[x,tree_form(f"d_{i}")]) , Wxh]) , TreeNode("f_wmul", [lst_Hht[i], Whh]) , Bh])
             lst_Hht.append(eq.fx("F"))
-            eq = TreeNode("f_wmul", [lst_Hht[-1], Why]) + By
+            eq = TreeNode("f_wadd", [TreeNode("f_wmul", [lst_Hht[-1], Why]) , By])
             lst_o.append(eq.fx("G"))
         self.lst_w = [Wxh, Whh, Why, By, Bh, Hht0]
         self.o = lst_o
-        L = summation([TreeNode("f_wmul", [item-TreeNode("f_index", [y, tree_form(f"d_{i+1}")]),(item-TreeNode("f_index", [y, tree_form(f"d_{i+1}")])).fx("transpose")])/tree_form("d_2") for index, item in enumerate(self.o)])
+        L_lst = []
+        for i, item in enumerate(self.o):
+            eq = TreeNode("f_index", [y, tree_form(f"d_{i}")])
+            eq = TreeNode("f_hadamard", [eq, tree_form("d_-1")])
+            eq = TreeNode("f_wadd", [eq, item])
+            eq = TreeNode("f_wmul", [eq, eq.fx("transpose")])
+            eq = TreeNode("f_hadamard", [eq, tree_form("d_2") ** tree_form("d_-1")])
+            L_lst.append(eq)
+        L = operation("f_wadd", L_lst)
         L = matrix_solve(L)
         gradient = []
         # x, y, h, t
@@ -266,9 +266,10 @@ class NeuralNetwork:
                 if i == 0:
                     item = TreeNode("f_index", [TreeNode("f_index", [item, tree_form("v_11")]), parse("j")])
                 else:
-                    item = TreeNode("f_index", [TreeNode("f_index", [item, tree_form("d_1")]), parse("j")])
+                    item = TreeNode("f_index", [TreeNode("f_index", [item, tree_form("d_0")]), parse("j")])
                 tmp = diff2(TreeNode("f_pdif", [L, item]))
-                eq = parse("W") - TreeNode("f_wmul", [parse("n"),tmp])
+                eq = TreeNode("f_hadamard", [tree_form("d_-1").fx("list").fx("list"), parse("n").fx("list").fx("list"),tmp])
+                eq = TreeNode("f_wadd", [parse("z").fx("list").fx("list"), eq])
                 eq = matrix_solve(eq)
                 gradient.append(eq)
         self.gradient = gradient
@@ -279,44 +280,45 @@ class NeuralNetwork:
         self.learn = lst_1
         return self
     def predict(self, given_x):
-        global shape, exp, power, hadamard, zeros, matmul, multiply, transpose, matadd, tanh
+        global shape, exp, hadamard, zeros, matmul, transpose, matadd, tanh, sigmoid, inv
         env = {
             "w": self.learn,
             "cap": cap,
-            "X": [given_x] if self.model_type == "dense" else given_x,
+            "X": [given_x] if self.model_type == "dense" else transpose([transpose(given_x)]),
             "transpose":transpose,
-            "multiply":multiply,
-            "shape":shape,
             "matmul":matmul,
             "zeros":zeros,
             "hadamard": hadamard,
             "exp":exp,
-            "power":power,
             "tanh":tanh,
-            "matadd": matadd
+            "sigmoid":sigmoid,
+            "matadd": matadd,
+            "inv":inv
         }
         if self.model_type == "dense":
-            return eval(gen2(self.o, self.lst_w, self.active), {}, env)
+            return eval(gen2(self.o, self.lst_w, self.active), {}, env)[0]
         else:
-            return [eval(gen2(item, self.lst_w, self.active), {}, env) for item in self.o]
+            return transpose([eval(gen2(item, self.lst_w, self.active), {}, env)[0] for item in self.o])
     def train(self, train_x, train_y, learning_rate, epoch):
-        global shape, exp, power, hadamard, zeros, matmul, multiply, transpose, matadd, tanh
+        global shape, exp, hadamard, zeros, matmul, transpose, matadd, tanh, sigmoid, inv
+        if self.model_type != "dense":
+            train_x = [transpose(item) for item in train_x]
+            train_y = [transpose(item) for item in train_y]
         env = {
             "cap": cap,
             "n": learning_rate,
+            "sigmoid":sigmoid,
             "matadd": matadd,
             "transpose":transpose,
-            "multiply":multiply,
-            "shape":shape,
             "matmul":matmul,
             "zeros":zeros,
             "hadamard": hadamard,
             "exp":exp,
             "tanh":tanh,
-            "power":power
+            "inv":inv
         }
         for j in range(len(self.lst_w)):
-            tmp = f"fx_{j} = lambda W,X,Y,i,j,w: "+gen2(self.gradient[j], self.lst_w, self.active)
+            tmp = f"fx_{j} = lambda z,X,Y,i,j,w: "+gen2(self.gradient[j], self.lst_w, self.active)
             exec(tmp, env)
         for k in range(epoch):            
             for data_index in range(len(train_x)):
@@ -327,13 +329,17 @@ class NeuralNetwork:
                     data_x = [train_x[data_index]]
                     data_y = [train_y[data_index]]
                 else:
-                    data_x = train_x[data_index]
-                    data_y = train_y[data_index]
+                    data_x = transpose([train_x[data_index]])
+                    data_y = transpose([train_y[data_index]])
                 for j in range(len(self.lst_w)):
                     s = shape(self.learn[j])
                     for x in range(s[0]):
                         for y in range(s[1]):
-                            W = self.learn[j][x][y]
-                            learn_new[j][x][y] = env[f"fx_{j}"](W, data_x, data_y, x+1, y+1, self.learn)[0][0]
+                            z = self.learn[j][x][y]
+                            out = env[f"fx_{j}"](z, data_x, data_y, x, y, self.learn)
+                            learn_new[j][x][y] = out[0][0]
                 self.learn = copy.deepcopy(learn_new)
-            print(f"epoches done {k+1}/{epoch}")
+            if k % round(epoch/10.0) == 0:
+                print(f"epoches done {k+1}/{epoch}")
+        print("training done.")
+        print()

@@ -9,7 +9,7 @@ from .decision import god, trig7
 
 from .expand import expand
 
-from .ml import NeuralNetwork
+from .ml import NeuralNetwork, transpose
 
 from .parser import parse, remove_extra_brackets
 
