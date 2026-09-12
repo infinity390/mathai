@@ -7,7 +7,7 @@ from .qm import hydrogen_gse, helium_gse, power_rule
 
 from .lambda_calculus import lambda_expand, lambda_compress, lambda_reduce
 
-from .electronic import Node, CircuitGraph, find_resistance, draw_circuit
+from .electronic import Node, CircuitGraph, find_resistance
 
 from .linear import linear_solve
 
