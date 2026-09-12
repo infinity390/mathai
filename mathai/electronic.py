@@ -1,3 +1,5 @@
+import schemdraw
+import schemdraw.elements as elm
 import math
 from .base import *
 from .simplify import simplify
@@ -106,10 +108,11 @@ class CircuitGraph:
                 break
         return direction_map
 def find_resistance(circuit, start, end):
-    if start not in circuit.connection.keys():
-        circuit.connection[start] = []
-    circuit.connection[start].append(end)
-    circuit.node_list.append(Node("cell", TreeNode("d_1"), (start, end)))
+    circuit = copy.deepcopy(circuit)
+    circuit.connection[end] = [len(circuit.node_list)]
+    circuit.connection[start] = [len(circuit.node_list)]
+    direction = (end, len(circuit.node_list))
+    circuit.node_list.append(Node("cell", TreeNode("d_1"), direction))
     circuit.complete_connection()
     circuit.current_map = circuit.current_direction_map()
     cycles = circuit.all_simple_cycle()
@@ -120,15 +123,89 @@ def find_resistance(circuit, start, end):
     eq_list = operation("f_and", [TreeNode("f_eq", [item, TreeNode("d_0")]) for item in eq_list])
     eq_list = simplify(fraction(simplify(eq_list)))
     eq_list = linear_solve(eq_list)
-    var = vlist(circuit.current_map[(start, end)])[0]
+    var = vlist(circuit.current_map[direction])[0]
     result = None
     if eq_list.name == "f_and":
         for child in eq_list.children:
             if [var] == vlist(child):
                 result = inverse(child.children[0], var)
     else:
-        if [var] == vlist(child):
+        if [var] == vlist(eq_list):
             result = inverse(eq_list.children[0], var)
     if result is None:
         return None
-    return TreeNode("d_1")/replace(circuit.current_map[(start, end)], tree_form(var), result)
+    return TreeNode("d_1")/replace(circuit.current_map[direction], tree_form(var), result)
+def get_node_name(idx):
+    name = ""
+    while idx >= 0:
+        name = chr(65 + (idx % 26)) + name
+        idx = (idx // 26) - 1
+    return name
+def get_node_label(node):
+    val = getattr(node, "value", None)
+    if hasattr(val, "value"):
+        return str(val.value)
+    return str(val) if val is not None else ""
+def draw_circuit(graph, output_file="circuit_diagram.png"):
+    graph.complete_connection()
+    adj = graph.connection
+    if not adj:
+        return None
+    class EmptyNode:
+        node_type = None
+        value = None
+    drawn_edges = set()
+    node_positions = {}
+    with schemdraw.Drawing(file=output_file) as d:
+        d.config(fontsize=12, unit=3.0)
+        for u, targets in adj.items():
+            u_node = (
+                graph.node_list[u] if u < len(graph.node_list) else EmptyNode()
+            )
+            for v in targets:
+                edge_key = tuple(sorted((u, v)))
+                if edge_key in drawn_edges:
+                    continue
+                drawn_edges.add(edge_key)
+                v_node = (
+                    graph.node_list[v]
+                    if v < len(graph.node_list)
+                    else EmptyNode()
+                )
+                comp_node = u_node if u_node.node_type else v_node
+                if comp_node and comp_node.node_type == "resistor":
+                    val_str = get_node_label(comp_node)
+                    elem = elm.Resistor().label(val_str, loc="top")
+                elif comp_node and comp_node.node_type == "cell":
+                    val_str = get_node_label(comp_node)
+                    elem = elm.Battery().label(val_str, loc="bottom")
+                elif comp_node and comp_node.node_type == "capacitor":
+                    val_str = get_node_label(comp_node)
+                    elem = elm.Capacitor().label(val_str, loc="top")
+                elif comp_node and comp_node.node_type == "inductor":
+                    val_str = get_node_label(comp_node)
+                    elem = elm.Inductor().label(val_str, loc="top")
+                else:
+                    elem = elm.Line()
+                if u in node_positions:
+                    elem = elem.at(node_positions[u])
+                if v in node_positions and u in node_positions:
+                    item = d.add(elem.to(node_positions[v]))
+                else:
+                    direction = "right" if u < v else "down"
+                    if direction == "right":
+                        item = d.add(elem.right())
+                    else:
+                        item = d.add(elem.down())
+                node_positions[u] = item.start
+                node_positions[v] = item.end
+        for idx, pos in node_positions.items():
+            n = (
+                graph.node_list[idx]
+                if idx < len(graph.node_list)
+                else EmptyNode()
+            )
+            if not n.node_type or n.node_type == "wire":
+                alpha_label = f"Node {get_node_name(idx)}"
+                d.add(elm.Dot().at(pos).label(alpha_label, loc="top"))
+    return output_file
