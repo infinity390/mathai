@@ -407,17 +407,12 @@ answer
 ```python
 from mathai import *
 load_formula_from_file()
+R, W = lambda v: Node("resistor", TreeNode(f"d_{v}")), Node
 graph = CircuitGraph(
-    node_list=[
-        Node(),
-        Node(),
-        Node("resistor", TreeNode("d_5")),
-        Node("resistor", TreeNode("d_5")),
-        Node(),
-    ],
-    connection={0: [1], 1: [2, 3], 2: [4], 3: [4], 4: [5]}
+    node_list=[W(), R(5), W(), R(10), R(11), R(8), R(7), W(), W(), R(6), R(8), W(), R(20), W()],
+    connection={0: [1, 8], 1: [0, 2], 2: [1, 3, 5], 3: [2, 4], 4: [3, 7], 5: [2, 6], 6: [5, 7], 7: [4, 6, 13], 8: [0, 9, 10], 9: [8, 11], 10: [8, 11], 11: [9, 10, 12], 12: [11, 13], 13: [7, 12]}
 )
-print(find_resistance(graph, 0, 5))
+print(compute(find_resistance(graph, 0, 13)))
 ```
 
 #### Output
@@ -426,7 +421,7 @@ print(find_resistance(graph, 0, 5))
 loading formulas from file...
 done
 
-5/2
+8.66474543707973
 ```
 
 ### Questions solved using god() function
