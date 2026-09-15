@@ -409,8 +409,8 @@ from mathai import *
 load_formula_from_file()
 wire_1 = Edge((0,1))
 ohm_10 = Edge((1,2), "resistor", TreeNode("d_10"))
-ohm_5 = Edge((1,3), "resistor", TreeNode("d_5"))
-ohm_6 = Edge((1,4), "resistor", TreeNode("d_6"))
+ohm_5 = Edge((2,3), "resistor", TreeNode("d_5"))
+ohm_6 = Edge((2,4), "resistor", TreeNode("d_6"))
 ohm_7 = Edge((4,5), "resistor", TreeNode("d_7"))
 ohm_8 = Edge((4,6), "resistor", TreeNode("d_8"))
 ohm_20 = Edge((6,7), "resistor", TreeNode("d_20"))
@@ -420,6 +420,7 @@ wire_4 = Edge((3,8))
 edge_list = [wire_1, wire_2, wire_3, wire_4, ohm_5, ohm_6, ohm_7, ohm_8, ohm_10, ohm_20]
 graph = CircuitGraph(9,edge_list,{})
 print(compute(find_resistance(graph, 0,8)))
+draw_circuit(graph)
 
 wire_1 = Edge((0,1))
 ohm_5 = Edge((1,2), "resistor", TreeNode("d_5"))
@@ -436,6 +437,7 @@ wire_4 = Edge((4,9))
 edge_list = [wire_1, wire_2, wire_3, wire_4, ohm_5, ohm_6, ohm_7, ohm_8, ohm_8_2, ohm_10, ohm_11, ohm_20]
 graph = CircuitGraph(10,edge_list,{})
 print(compute(find_resistance(graph, 0, 9)))
+draw_circuit(graph)
 ```
 
 #### Output
@@ -444,7 +446,7 @@ print(compute(find_resistance(graph, 0, 9)))
 loading formulas from file...
 done
 
-3.493975903614458
+13.493975903614459
 8.66474543707973
 ```
 
