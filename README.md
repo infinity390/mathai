@@ -407,6 +407,7 @@ answer
 ```python
 from mathai import *
 load_formula_from_file()
+<<<<<<< HEAD
 wire_1 = Edge((0, 1))
 ohm_5 = Edge((1, 2), "resistor", TreeNode("d_5"))
 ohm_10 = Edge((2, 3), "resistor", TreeNode("d_10"))
@@ -423,6 +424,56 @@ edge_list = [wire_1, wire_2, wire_3, wire_4,ohm_5, ohm_6, ohm_7, ohm_8, ohm_8_2,
 graph = CircuitGraph(10, edge_list, {})
 print(compute(find_resistance(graph, 0, 9)))
 draw_circuit(graph, start=0, end=9, scale=3.0, grid_size=30)
+=======
+ohm_10 = Edge((0,1), "resistor", TreeNode("d_10"))
+ohm_30 = Edge((0,2), "resistor", TreeNode("d_30"))
+ohm_25 = Edge((0,3), "resistor", TreeNode("d_25"))
+wire_1 = Edge((1,4))
+wire_2 = Edge((2,4))
+wire_3 = Edge((3,4))
+edge_list = [wire_1, wire_2, wire_3, ohm_10, ohm_25, ohm_30]
+graph = CircuitGraph(5,edge_list,{})
+print(compute(find_resistance(graph, 0, 4)))
+
+wire_1 = Edge((0,1))
+ohm_10 = Edge((1,2), "resistor", TreeNode("d_10"))
+ohm_5 = Edge((2,3), "resistor", TreeNode("d_5"))
+ohm_6 = Edge((2,4), "resistor", TreeNode("d_6"))
+ohm_7 = Edge((4,5), "resistor", TreeNode("d_7"))
+ohm_8 = Edge((4,6), "resistor", TreeNode("d_8"))
+ohm_20 = Edge((6,7), "resistor", TreeNode("d_20"))
+wire_2 = Edge((7,5))
+wire_3 = Edge((3,5))
+wire_4 = Edge((3,8))
+edge_list = [wire_1, wire_2, wire_3, wire_4, ohm_5, ohm_6, ohm_7, ohm_8, ohm_10, ohm_20]
+graph = CircuitGraph(9,edge_list,{})
+print(compute(find_resistance(graph, 0,8)))
+
+wire_1 = Edge((0,1))
+ohm_5 = Edge((1,2), "resistor", TreeNode("d_5"))
+ohm_10 = Edge((2,3), "resistor", TreeNode("d_10"))
+ohm_11 = Edge((3,4), "resistor", TreeNode("d_11"))
+ohm_8 = Edge((2,5), "resistor", TreeNode("d_8"))
+ohm_7 = Edge((5,4), "resistor", TreeNode("d_7"))
+ohm_6 = Edge((1,6), "resistor", TreeNode("d_6"))
+ohm_8_2 = Edge((1,7), "resistor", TreeNode("d_8"))
+wire_2 = Edge((6,8))
+wire_3 = Edge((7,8))
+ohm_20 = Edge((8,4), "resistor", TreeNode("d_20"))
+wire_4 = Edge((4,9))
+edge_list = [wire_1, wire_2, wire_3, wire_4, ohm_5, ohm_6, ohm_7, ohm_8, ohm_8_2, ohm_10, ohm_11, ohm_20]
+graph = CircuitGraph(10,edge_list,{})
+print(compute(find_resistance(graph, 0, 9)))
+
+wire_1 = Edge((1,2))
+ohm_2_1 = Edge((0,1), "resistor", TreeNode("d_2"))
+ohm_2_2 = Edge((0,2), "resistor", TreeNode("d_2"))
+ohm_3_1 = Edge((1,3), "resistor", TreeNode("d_3"))
+ohm_3_2 = Edge((2,3), "resistor", TreeNode("d_3"))
+edge_list = [wire_1, ohm_2_1, ohm_2_2, ohm_3_1, ohm_3_2]
+graph = CircuitGraph(4,edge_list,{})
+print(compute(find_resistance(graph, 0, 3)))
+>>>>>>> e3cab3ca44ea6280099f9e9f29c6b29f2a34cd2f
 ```
 
 #### Output
@@ -431,7 +482,13 @@ draw_circuit(graph, start=0, end=9, scale=3.0, grid_size=30)
 loading formulas from file...
 done
 
+<<<<<<< HEAD
+=======
+5.769230769230769
+13.493975903614459
+>>>>>>> e3cab3ca44ea6280099f9e9f29c6b29f2a34cd2f
 8.66474543707973
+2.5
 ```
 
 ### Questions solved using god() function
