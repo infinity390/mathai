@@ -407,37 +407,22 @@ answer
 ```python
 from mathai import *
 load_formula_from_file()
-wire_1 = Edge((0,1))
-ohm_10 = Edge((1,2), "resistor", TreeNode("d_10"))
-ohm_5 = Edge((2,3), "resistor", TreeNode("d_5"))
-ohm_6 = Edge((2,4), "resistor", TreeNode("d_6"))
-ohm_7 = Edge((4,5), "resistor", TreeNode("d_7"))
-ohm_8 = Edge((4,6), "resistor", TreeNode("d_8"))
-ohm_20 = Edge((6,7), "resistor", TreeNode("d_20"))
-wire_2 = Edge((7,5))
-wire_3 = Edge((3,5))
-wire_4 = Edge((3,8))
-edge_list = [wire_1, wire_2, wire_3, wire_4, ohm_5, ohm_6, ohm_7, ohm_8, ohm_10, ohm_20]
-graph = CircuitGraph(9,edge_list,{})
-print(compute(find_resistance(graph, 0,8)))
-draw_circuit(graph)
-
-wire_1 = Edge((0,1))
-ohm_5 = Edge((1,2), "resistor", TreeNode("d_5"))
-ohm_10 = Edge((2,3), "resistor", TreeNode("d_10"))
-ohm_11 = Edge((3,4), "resistor", TreeNode("d_11"))
-ohm_8 = Edge((2,5), "resistor", TreeNode("d_8"))
-ohm_7 = Edge((5,4), "resistor", TreeNode("d_7"))
-ohm_6 = Edge((1,6), "resistor", TreeNode("d_6"))
-ohm_8_2 = Edge((1,7), "resistor", TreeNode("d_8"))
-wire_2 = Edge((6,8))
-wire_3 = Edge((7,8))
-ohm_20 = Edge((8,4), "resistor", TreeNode("d_20"))
-wire_4 = Edge((4,9))
-edge_list = [wire_1, wire_2, wire_3, wire_4, ohm_5, ohm_6, ohm_7, ohm_8, ohm_8_2, ohm_10, ohm_11, ohm_20]
-graph = CircuitGraph(10,edge_list,{})
+wire_1 = Edge((0, 1))
+ohm_5 = Edge((1, 2), "resistor", TreeNode("d_5"))
+ohm_10 = Edge((2, 3), "resistor", TreeNode("d_10"))
+ohm_11 = Edge((3, 4), "resistor", TreeNode("d_11"))
+ohm_8 = Edge((2, 5), "resistor", TreeNode("d_8"))
+ohm_7 = Edge((5, 4), "resistor", TreeNode("d_7"))
+ohm_6 = Edge((1, 6), "resistor", TreeNode("d_6"))
+ohm_8_2 = Edge((1, 7), "resistor", TreeNode("d_8"))
+wire_2 = Edge((6, 8))
+wire_3 = Edge((7, 8))
+ohm_20 = Edge((8, 4), "resistor", TreeNode("d_20"))
+wire_4 = Edge((4, 9))
+edge_list = [wire_1, wire_2, wire_3, wire_4,ohm_5, ohm_6, ohm_7, ohm_8, ohm_8_2, ohm_10, ohm_11, ohm_20]
+graph = CircuitGraph(10, edge_list, {})
 print(compute(find_resistance(graph, 0, 9)))
-draw_circuit(graph)
+draw_circuit(graph, start=0, end=9, scale=3.0, grid_size=30)
 ```
 
 #### Output
@@ -446,7 +431,6 @@ draw_circuit(graph)
 loading formulas from file...
 done
 
-13.493975903614459
 8.66474543707973
 ```
 

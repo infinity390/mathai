@@ -1,5 +1,4 @@
-import schemdraw
-import schemdraw.elements as elm
+import random
 import copy
 from .base import *
 from .simplify import simplify
@@ -214,196 +213,197 @@ def find_resistance(circuit, start, end):
     for variable, value in solutions.items():
         if variable in vlist(current):
             current = replace(current, tree_form(variable), value)
-    current = simplify(current)
-    if vlist(current):
-        return None
-    if current == TreeNode("d_0"):
-        return None
-    return simplify(TreeNode("d_1") / current)
-def draw_circuit(graph):
-    size = 80
-    margin = 35
-    spacing = 6
-    positions = []
-    n = graph.node_count
-    side_counts = [n // 4] * 4
-    for i in range(n % 4):
-        side_counts[i] += 1
-    top, right, bottom, left = side_counts
-    for i in range(top):
-        positions.append((margin, margin + i * spacing))
-    for i in range(right):
-        positions.append(
-            (margin + i * spacing, size - margin - 1)
-        )
-    for i in range(bottom):
-        positions.append(
-            (size - margin - 1, size - margin - 1 - i * spacing)
-        )
-    for i in range(left):
-        positions.append(
-            (size - margin - 1 - i * spacing, margin)
-        )
-    if len(positions) != n:
-        print("No circuit layout found.")
-        return
-    edges = []
-    for edge in graph.edge_list:
-        if not edge.edge:
-            continue
-        u, v = edge.edge
-        if u == v:
-            continue
-        edges.append((u, v))
-    def orientation(a, b, c):
-        value = (
-            (b[1] - a[1]) * (c[0] - b[0])
-            - (b[0] - a[0]) * (c[1] - b[1])
-        )
-        if value == 0:
-            return 0
-        return 1 if value > 0 else 2
-    def on_segment(a, b, c):
-        return (
-            min(a[0], c[0]) <= b[0] <= max(a[0], c[0])
-            and
-            min(a[1], c[1]) <= b[1] <= max(a[1], c[1])
-        )
-    def intersects(a, b, c, d):
-        o1 = orientation(a, b, c)
-        o2 = orientation(a, b, d)
-        o3 = orientation(c, d, a)
-        o4 = orientation(c, d, b)
-        if o1 != o2 and o3 != o4:
-            return True
-        if o1 == 0 and on_segment(a, c, b):
-            return True
-        if o2 == 0 and on_segment(a, d, b):
-            return True
-        if o3 == 0 and on_segment(c, a, d):
-            return True
-        if o4 == 0 and on_segment(c, b, d):
-            return True
+    current = simplify(TreeNode("d_1")/current)
+    return current
+import random
+import schemdraw
+import schemdraw.elements as elm
+
+
+def on_segment(p, a, b):
+    """Returns True if point p lies exactly on the line segment a-b."""
+    # Collinearity check (cross product == 0)
+    cross = (p[0] - a[0]) * (b[1] - a[1]) - (p[1] - a[1]) * (b[0] - a[0])
+    if abs(cross) > 1e-6:
         return False
-    def edge_intersects_node(a, b, node):
-        if node == a or node == b:
-            return False
-        x1, y1 = a
-        x2, y2 = b
-        x, y = node
-        cross = (
-            (x - x1) * (y2 - y1)
-            - (y - y1) * (x2 - x1)
-        )
-        if cross != 0:
-            return False
-        return (
-            min(x1, x2) <= x <= max(x1, x2)
-            and
-            min(y1, y2) <= y <= max(y1, y2)
-        )
-    def valid_edge(a, b, drawn_edges, node_positions):
-        for node in node_positions.values():
-            if edge_intersects_node(a, b, node):
-                return False
-        for c, d in drawn_edges:
-            if (
-                a == c or
-                a == d or
-                b == c or
-                b == d
-            ):
-                continue
-            if intersects(a, b, c, d):
-                return False
+    # Bounding box check
+    if min(a[0], b[0]) <= p[0] <= max(a[0], b[0]) and \
+       min(a[1], b[1]) <= p[1] <= max(a[1], b[1]):
         return True
-    node_order = list(range(n))
-    def try_permutation(order):
-        node_positions = {
-            node: positions[i]
-            for i, node in enumerate(order)
-        }
-        drawn_edges = []
-        ordered_edges = sorted(
-            edges,
-            key=lambda edge: (
-                abs(
-                    node_positions[edge[0]][0]
-                    - node_positions[edge[1]][0]
-                )
-                +
-                abs(
-                    node_positions[edge[0]][1]
-                    - node_positions[edge[1]][1]
-                )
-            ),
-            reverse=True
-        )
-        for u, v in ordered_edges:
-            a = node_positions[u]
-            b = node_positions[v]
-            if not valid_edge(
-                a,
-                b,
-                drawn_edges,
-                node_positions
-            ):
-                return None
-            drawn_edges.append((a, b))
-        return node_positions, drawn_edges
-    def permutations(items):
-        if len(items) <= 1:
-            yield items
-            return
-        for i in range(len(items)):
-            first = items[i]
-            rest = items[:i] + items[i + 1:]
-            for result in permutations(rest):
-                yield [first] + result
-    result = None
-    for order in permutations(node_order):
-        result = try_permutation(order)
-        if result is not None:
-            break
-    if result is None:
-        print("No circuit layout found.")
-        return
-    node_positions, drawn_edges = result
-    d = schemdraw.Drawing()
-    for edge in graph.edge_list:
-        if not edge.edge:
-            continue
+    return False
+
+
+def segments_conflict_exact(a, b, c, d):
+    """
+    Checks if segment ab conflicts with cd (intersects or overlaps), 
+    ignoring shared endpoints unless they perfectly overlap.
+    """
+    def ccw(p, q, r):
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+
+    c1, c2 = ccw(a, b, c), ccw(a, b, d)
+    c3, c4 = ccw(c, d, a), ccw(c, d, b)
+
+    # 1. True geometric intersection (lines cross)
+    if ((c1 > 0 and c2 < 0) or (c1 < 0 and c2 > 0)) and \
+       ((c3 > 0 and c4 < 0) or (c3 < 0 and c4 > 0)):
+        return True
+
+    # 2. Collinear overlap (one point lies strictly inside the other segment)
+    if on_segment(c, a, b) and c != a and c != b: return True
+    if on_segment(d, a, b) and d != a and d != b: return True
+    if on_segment(a, c, d) and a != c and a != d: return True
+    if on_segment(b, c, d) and b != c and b != d: return True
+
+    # 3. Identical overlapping segments
+    if (a == c and b == d) or (a == d and b == c):
+        return True
+
+    return False
+
+
+def get_all_candidate_routes(p1, p2):
+    """Generates all valid orthogonal straight line and 1-bend L-routes."""
+    x1, y1 = p1
+    x2, y2 = p2
+
+    # Collinear (Straight line along single axis)
+    if x1 == x2 or y1 == y2:
+        return [[p1, p2]]
+
+    # Standard L-shapes (Horizontal-first or Vertical-first)
+    return [
+        [p1, (x1, y2), p2],
+        [p1, (x2, y1), p2]
+    ]
+
+
+def route_to_segments(route):
+    return [(route[i], route[i + 1]) for i in range(len(route) - 1)]
+
+
+def check_route_conflict(route, placed_routes, node_positions, u, v):
+    """Validates that a new route does not cross placed routes or run over unrelated nodes."""
+    segs = route_to_segments(route)
+    
+    # 1. Check against already placed routes
+    for placed_route in placed_routes:
+        placed_segs = route_to_segments(placed_route)
+        for a, b in segs:
+            for c, d in placed_segs:
+                if segments_conflict_exact(a, b, c, d):
+                    return True
+                    
+    # 2. Check against nodes (prevent line from running through an unrelated node)
+    for node, pos in node_positions.items():
+        if node == u or node == v:
+            continue  # Permitted to touch its own endpoints
+        for a, b in segs:
+            if on_segment(pos, a, b):
+                return True
+                
+    return False
+
+
+def solve_routing(edges, node_positions):
+    """DFS Backtracking to find a 100% collision-free route mapping for a given node layout."""
+    placed_routes = []
+    
+    def backtrack(edge_idx):
+        if edge_idx == len(edges):
+            return True
+        
+        edge = edges[edge_idx]
         u, v = edge.edge
-        if u == v:
-            continue
-        start = node_positions[u]
-        end = node_positions[v]
-        if edge.edge_type == "resistor":
-            element = (
-                elm.Resistor()
-                .at(start)
-                .to(end)
-            )
-            if edge.value is not None:
-                element.label(str(edge.value))
-        elif edge.edge_type == "cell":
-            element = (
-                elm.Cell()
-                .at(start)
-                .to(end)
-            )
-        else:
-            element = (
-                elm.Line()
-                .at(start)
-                .to(end)
-            )
-        d.add(element)
-    for node, position in node_positions.items():
-        d.add(
-            elm.Dot()
-            .at(position)
-            .label(chr(ord("A") + node))
-        )
+        p1, p2 = node_positions[u], node_positions[v]
+        
+        candidate_routes = get_all_candidate_routes(p1, p2)
+        random.shuffle(candidate_routes) 
+        
+        for route in candidate_routes:
+            if not check_route_conflict(route, placed_routes, node_positions, u, v):
+                placed_routes.append(route)
+                if backtrack(edge_idx + 1):
+                    return True
+                placed_routes.pop()
+        return False
+        
+    if backtrack(0):
+        return placed_routes
+    return None
+
+
+def draw_circuit(graph, start=None, end=None, scale=3.0, grid_size=12, max_attempts=10000):
+    """
+    Renders a circuit using randomized grid placement and exact geometric backtracking.
+    Guarantees strict L/straight paths without line intersections or bugs.
+    """
+    edges = graph.edge_list
+    all_nodes = set()
+    for edge in edges:
+        all_nodes.add(edge.edge[0])
+        all_nodes.add(edge.edge[1])
+        
+    nodes_list = sorted(list(all_nodes))
+
+    best_positions = None
+    best_routes = None
+
+    # Search for a node configuration that allows a perfect non-intersecting layout
+    for _ in range(max_attempts):
+        # Generate random available grid locations
+        available_cells = [
+            (col * scale, -row * scale)
+            for row in range(grid_size)
+            for col in range(grid_size)
+        ]
+        random.shuffle(available_cells)
+
+        current_positions = {node: available_cells[i] for i, node in enumerate(nodes_list)}
+
+        # Attempt to perfectly route all edges
+        routes = solve_routing(edges, current_positions)
+        
+        if routes is not None:
+            best_positions = current_positions
+            best_routes = routes
+            break  # Perfect layout found!
+
+    if best_routes is None:
+        raise RuntimeError("Failed to find a non-intersecting layout. Try increasing grid_size or max_attempts.")
+
+    # Render Circuit Diagram with Schemdraw
+    d = schemdraw.Drawing()
+
+    for idx, edge in enumerate(edges):
+        route = best_routes[idx]
+        segs = route_to_segments(route)
+        resistor = getattr(edge, "edge_type", "") == "resistor"
+        value = getattr(edge, "value", "")
+
+        for i, (p1, p2) in enumerate(segs):
+            # Place resistor component on the last segment of the route
+            if resistor and i == len(segs) - 1:
+                lbl = f"{value} Ω" if value else ""
+                d.add(
+                    elm.Resistor()
+                    .at(p1)
+                    .to(p2)
+                    .label(lbl)
+                )
+            else:
+                d.add(elm.Line().at(p1).to(p2))
+
+    # Draw Nodes
+    for node, pos in best_positions.items():
+        d.add(elm.Dot().at(pos))
+
+    # Add Terminal Labels
+    if start is not None and start in best_positions:
+        d.add(elm.Label().at(best_positions[start]).label("Start", loc="left"))
+
+    if end is not None and end in best_positions:
+        d.add(elm.Label().at(best_positions[end]).label("End", loc="right"))
+
     d.draw()
-    return node_positions
+    return d
