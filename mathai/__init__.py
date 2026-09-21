@@ -15,6 +15,8 @@ from .test import test
 
 from .decision import god, trig7
 
+from .graphics import solve_graphics
+
 from .expand import expand
 
 from .ml import NeuralNetwork, diff_matrix_matrix

@@ -434,6 +434,19 @@ done
 8.66474543707973
 ```
 
+#### Example Demonstration 11 (engineering graphics)
+```python
+from mathai import *
+s = "0 -25 0 None None None None None None 0 None 55 75"
+s = [None if item == "None" else parse(item) for item in s.split(" ")]
+print(solve_graphics(*s))
+```
+
+#### Output
+```
+{'v_0': 0, 'v_1': -25, 'v_2': 0, 'v_9': 0, 'v_11': 55, 'v_12': 75, 'v_7': sqrt(2600), 'v_10': arcsin((sqrt(2600)/75)), 'v_8': 75*sqrt((1-((sqrt(2600)/75)^2))), 'v_6': 0, 'v_3': 0, 'v_4': -25+sqrt(2600), 'v_5': 75*sqrt((1-((sqrt(2600)/75)^2)))}
+```
+
 ### Questions solved using god() function
 
 #### Code
