@@ -447,7 +447,7 @@ print()
 # Engineering Graphics for DEGREE P.I. Varghese
 solve_graphics_string("20 25 0 None None None None None None 30*pi/180 0 60 None None") # 11.14
 print()
-solve_graphics_string("15 25 0 None None None None None None 30*pi/180 0 50 None None") # 11.15
+solve_graphics_string("15 25 0 None None None None None None 30*pi/180 0 50 None None") # 11.16
 print()
 solve_graphics_string("0 -25 0 None None None None None None None 0 55 None 75") # 11.17
 print()
