@@ -437,14 +437,27 @@ done
 #### Example Demonstration 11 (engineering graphics)
 ```python
 from mathai import *
-s = "0 -25 0 None None None None None None 0 None 55 75"
-s = [None if item == "None" else parse(item) for item in s.split(" ")]
-print(solve_graphics(*s))
+# (z,y) is dash, a'b' is front view
+# (z,-x) is no dash, ab is top view
+solve_graphics_string("30 20 0 None None None None None None 0 40*pi/180 None None 60")
 ```
 
 #### Output
 ```
-{'v_0': 0, 'v_1': -25, 'v_2': 0, 'v_9': 0, 'v_11': 55, 'v_12': 75, 'v_7': sqrt(2600), 'v_10': arcsin((sqrt(2600)/75)), 'v_8': 75*sqrt((1-((sqrt(2600)/75)^2))), 'v_6': 0, 'v_3': 0, 'v_4': -25+sqrt(2600), 'v_5': 75*sqrt((1-((sqrt(2600)/75)^2)))}
+Ax : 30
+Ay : 20
+Az : 0
+Bx : 30
+By : 20+(60*sin(((2*pi)/9)))
+Bz : 60*abs(cos(((2*pi)/9)))
+Bx-Ax : 0
+By-Ay : 60*sin(((2*pi)/9))
+Bz-Az : 60*abs(cos(((2*pi)/9)))
+inclination_with_VP : 0
+inclination_with_HP : (2*pi)/9
+front_view_length : 60
+top_view_length : 60*abs(cos(((2*pi)/9)))
+line_length : 60
 ```
 
 ### Questions solved using god() function

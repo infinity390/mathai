@@ -15,7 +15,7 @@ from .test import test
 
 from .decision import god, trig7
 
-from .graphics import solve_graphics
+from .graphics import solve_graphics, solve_graphics_string
 
 from .expand import expand
 
