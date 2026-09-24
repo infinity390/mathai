@@ -439,7 +439,17 @@ done
 from mathai import *
 # (z,y) is dash, a'b' is front view
 # (z,-x) is no dash, ab is top view
+
+# A line AB 60 mm long has its end A 20 mm above HP and 30 mm infront of VP. The line is inclined at 40 degrees to HP and is parallel to VP. Draw the projection.
 solve_graphics_string("30 20 0 None None None None None None 0 40*pi/180 None None 60")
+print()
+
+# Engineering Graphics for DEGREE P.I. Varghese
+solve_graphics_string("20 25 0 None None None None None None 30*pi/180 0 60 None None") # 11.14
+print()
+solve_graphics_string("15 25 0 None None None None None None 30*pi/180 0 50 None None") # 11.15
+print()
+solve_graphics_string("25 50 0 -30 None None None None None None 0 50 None 80") # 11.19
 ```
 
 #### Output
@@ -458,6 +468,51 @@ inclination_with_HP : (2*pi)/9
 front_view_length : 60
 top_view_length : 60*abs(cos(((2*pi)/9)))
 line_length : 60
+
+Ax : 20
+Ay : 25
+Az : 0
+Bx : 20+(60/(3^-(-1/2)))
+By : 25
+Bz : 60
+Bx-Ax : 60/(3^-(-1/2))
+By-Ay : 0
+Bz-Az : 60
+inclination_with_VP : pi/6
+inclination_with_HP : 0
+front_view_length : 60
+top_view_length : sqrt(4800)
+line_length : 120/(3^-(-1/2))
+
+Ax : 15
+Ay : 25
+Az : 0
+Bx : 15+(50/(3^-(-1/2)))
+By : 25
+Bz : 50
+Bx-Ax : 50/(3^-(-1/2))
+By-Ay : 0
+Bz-Az : 50
+inclination_with_VP : pi/6
+inclination_with_HP : 0
+front_view_length : 50
+top_view_length : 100/(3^-(-1/2))
+line_length : 100/(3^-(-1/2))
+
+Ax : 25
+Ay : 50
+Az : 0
+Bx : -30
+By : 50
+Bz : 5*sqrt(135)
+Bx-Ax : -55
+By-Ay : 0
+Bz-Az : 5*sqrt(135)
+inclination_with_VP : arcsin((-11/16))
+inclination_with_HP : 0
+front_view_length : 50
+top_view_length : 80
+line_length : 80
 ```
 
 ### Questions solved using god() function
