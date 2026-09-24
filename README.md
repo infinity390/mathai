@@ -451,7 +451,7 @@ solve_graphics_string("15 25 0 None None None None None None 30*pi/180 0 50 None
 print()
 solve_graphics_string("0 -25 0 None None None None None None None 0 55 None 75") # 11.17
 print()
-solve_graphics_string("25 50 0 -30 None None None None None None 0 50 None 80") # 11.19
+solve_graphics_string("25 50 0 -30 None None None None None None 0 None None 80") # 11.19
 ```
 
 #### Output
@@ -461,14 +461,14 @@ Ay : 20
 Az : 0
 Bx : 30
 By : 20+(60*sin(((2*pi)/9)))
-Bz : 60*abs(cos(((2*pi)/9)))
+Bz : 60*sqrt((1-(sin(((2*pi)/9))^2)))
 Bx-Ax : 0
 By-Ay : 60*sin(((2*pi)/9))
-Bz-Az : 60*abs(cos(((2*pi)/9)))
+Bz-Az : 60*sqrt((1-(sin(((2*pi)/9))^2)))
 inclination_with_VP : 0
 inclination_with_HP : (2*pi)/9
 front_view_length : 60
-top_view_length : 60*abs(cos(((2*pi)/9)))
+top_view_length : sqrt((3600-(3600*(sin(((2*pi)/9))^2))))
 line_length : 60
 
 Ax : 20
@@ -504,16 +504,16 @@ line_length : 100/(3^-(-1/2))
 Ax : 0
 Ay : -25
 Az : 0
-Bx : 75*sin(arccos((11/15)))
+Bx : 5*sqrt(104)
 By : -25
 Bz : 55
-Bx-Ax : 75*sin(arccos((11/15)))
+Bx-Ax : 5*sqrt(104)
 By-Ay : 0
 Bz-Az : 55
-inclination_with_VP : arccos((11/15))
+inclination_with_VP : arcsin((sqrt(104)/15))
 inclination_with_HP : 0
 front_view_length : 55
-top_view_length : sqrt((3025+(5625*(sin(arccos((11/15)))^2))))
+top_view_length : 75
 line_length : 75
 
 Ax : 25
@@ -521,14 +521,14 @@ Ay : 50
 Az : 0
 Bx : -30
 By : 50
-Bz : 80*abs(cos(arcsin((-11/16))))
+Bz : 5*sqrt(135)
 Bx-Ax : -55
 By-Ay : 0
-Bz-Az : 80*abs(cos(arcsin((-11/16))))
+Bz-Az : 5*sqrt(135)
 inclination_with_VP : arcsin((-11/16))
 inclination_with_HP : 0
-front_view_length : 50
-top_view_length : sqrt((3025+(6400*(cos(arcsin((-11/16)))^2))))
+front_view_length : sqrt(3375)
+top_view_length : 80
 line_length : 80
 ```
 

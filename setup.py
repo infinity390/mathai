@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 from pathlib import Path
 setup(
     name="mathai",
-    version="2.2.4",
+    version="2.2.5",
     description="Mathematics solving Ai tailored to NCERT",
     long_description=Path("README.md").read_text(encoding="utf-8"),
     long_description_content_type="text/markdown",
