@@ -1,5 +1,6 @@
 from .inverse import inverse
 import itertools
+import copy
 from .diff import diff
 from .simplify import simplify
 from .fraction import fraction
@@ -7,8 +8,10 @@ from .expand import expand
 from .base import *
 from .factor import factorconst
 from .tool import poly
+
 def ss(eq):
     return dowhile(eq, lambda x: fraction(simplify(x)))
+
 def rref(matrix, fxconst):
     rows, cols = len(matrix), len(matrix[0])
     lead = 0
@@ -32,25 +35,28 @@ def rref(matrix, fxconst):
                 matrix[i] = [ss(m - lv * n) for m, n in zip(matrix[i], matrix[r])]
         lead += 1
     return matrix
+
 def linear(eqlist, fxconst):
     orig = [item.copy_tree() for item in eqlist]
-    v2 = []
     vl = []
+    
     def varlist(eq, fxconst):
         nonlocal vl
-        nonlocal v2
-        if eq.name[:2] == "v_" and fxconst(eq):
-            vl.append(eq.name)
         if eq.name[:2] == "v_" and not fxconst(eq):
-            v2.append(eq.name)
+            vl.append(eq.name)
         for child in eq.children:
             varlist(child, fxconst)
+            
     for eq in eqlist:
         varlist(eq, fxconst)
-    vl = v2
-    vl = list(set(vl))
+        
+    vl = sorted(list(set(vl)))
+    
     if len(vl) > len(eqlist):
+        if len(eqlist) == 1:
+            return TreeNode("f_eq", [eqlist[0], tree_form("d_0")])
         return TreeNode("f_and", [TreeNode("f_eq", [x, tree_form("d_0")]) for x in eqlist])
+        
     m = []
     for eq in eqlist:
         s = copy.deepcopy(eq)
@@ -60,36 +66,46 @@ def linear(eqlist, fxconst):
             s = replace(s, tree_form(v), tree_form("d_0"))
         row.append(s)
         m.append(row)
+        
     for i in range(len(m)):
         for j in range(len(m[i])):
             m[i][j] = simplify(expand(m[i][j]))
+            
     m = rref(m, fxconst)
+    
     for i in range(len(m)):
         for j in range(len(m[i])):
             m[i][j] = fraction(m[i][j])
+            
     output = []
     for index, row in enumerate(m):
-        if not all(item == 0 for item in row[:-1]):
-            output.append(summation([tree_form(vl[index2])*coeff for index2, coeff in enumerate(row[:-1])])+row[-1])
-        elif row[-1] != 0:
+        if not all(item == tree_form("d_0") for item in row[:-1]):
+            output.append(summation([tree_form(vl[index2])*coeff for index2, coeff in enumerate(row[:-1])]) + row[-1])
+        elif row[-1] != tree_form("d_0"):
             return tree_form("s_false")
+            
     if len(output) == 1:
         return TreeNode("f_eq", [output[0], tree_form("d_0")])
     if len(output) == 0:
         return tree_form("s_false")
     return TreeNode("f_and", [TreeNode("f_eq", [x, tree_form("d_0")]) for x in output])
+
 def linear_solve(eq, lst=None):
     eq = simplify(eq)
     eqlist = []
-    if eq.name =="f_and" and all(child.name == "f_eq" and child.children[1] == tree_form("d_0") for child in eq.children):
+    if eq.name == "f_and" and all(child.name == "f_eq" and child.children[1] == tree_form("d_0") for child in eq.children):
         eqlist = [child.children[0] for child in eq.children]
+    elif eq.name == "f_eq" and eq.children[1] == tree_form("d_0"):
+        eqlist = [eq.children[0]]
     else:
         return eq
+        
     out = None
     if lst is None:
         out = linear(copy.deepcopy(eqlist), lambda x: False)
     else:
         out = linear(copy.deepcopy(eqlist), lambda x: any(contain(x, item) for item in lst))
+        
     if out is None:
         return None
     return simplify(out)

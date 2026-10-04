@@ -422,7 +422,6 @@ wire_4 = Edge((4, 9))
 edge_list = [wire_1, wire_2, wire_3, wire_4,ohm_5, ohm_6, ohm_7, ohm_8, ohm_8_2, ohm_10, ohm_11, ohm_20]
 graph = CircuitGraph(10, edge_list, {})
 print(compute(find_resistance(graph, 0, 9)))
-draw_circuit(graph, start=0, end=9, scale=3.0, grid_size=30)
 ```
 
 #### Output
@@ -434,7 +433,29 @@ done
 8.66474543707973
 ```
 
-#### Example Demonstration 11 (engineering graphics)
+#### Example Demonstration 11 (resistors in parallel)
+```python
+from mathai import *
+load_formula_from_file()
+wire_1 = Edge((1, 3))
+wire_2 = Edge((2, 3))
+ohm_r1 = Edge((0, 1), "resistor", parse("x"))
+ohm_r2 = Edge((0, 2), "resistor", parse("y"))
+edge_list = [wire_1, ohm_r1, ohm_r2, wire_2]
+graph = CircuitGraph(4, edge_list, {})
+print(fraction(find_resistance(graph, 0, 3)))
+```
+
+#### Output
+
+```
+loading formulas from file...
+done
+
+(x*y)/(x+y)
+```
+
+#### Example Demonstration 12 (engineering graphics)
 ```python
 from mathai import *
 # (z,y) is dash, a'b' is front view
@@ -447,7 +468,7 @@ print()
 # Engineering Graphics for DEGREE P.I. Varghese
 solve_graphics_string("20 25 0 None None None None None None 30*pi/180 0 60 None None") # 11.14
 print()
-solve_graphics_string("15 25 0 None None None None None None 30*pi/180 0 50 None None") # 11.16
+solve_graphics_string("15 25 0 None None None None None None 30*pi/180 0 50 None None") # 11.15
 print()
 solve_graphics_string("0 -25 0 None None None None None None None 0 55 None 75") # 11.17
 print()
