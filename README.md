@@ -103,19 +103,16 @@ printeq(equation)
 #### Example Demonstration 1 (derivation of hydrogen and helium atom's ground state energy in electron volts using the variational principle in quantum physics)
 ```python
 from mathai import *
-print("ground state energy of hydrogen atom using quantum physics variational principle")
-print(f"{hydrogen_gse()} eV")
-print()
-print("ground state energy of helium atom using quantum physics variational principle")
-print(f"{helium_gse()} eV")
+import random
+load_formula_from_file()
+print(hydrogen_gse())
 ```
 #### Output
 ```
-ground state energy of hydrogen atom using quantum physics variational principle
--13.605693122882869 eV
+loading formulas from file...
+done
 
-ground state energy of helium atom using quantum physics variational principle
--77.48867420464012 eV
+-13.605693122882869
 ```
 
 #### Example Demonstration 2 (boolean algebra)
@@ -305,9 +302,16 @@ training done.
 [[0.008834236758389541, 0.9940178289678866], [0.008739967675337235, 0.9941232242029681]]
 ```
 
-#### Example Demonstration 8 (neural networks)
+#### Example Demonstration 8 (neural networks + mixed)
 ```python
-from mathai import NeuralNetwork, parse
+from mathai import *
+load_formula_from_file()
+god("abs(x)<1")
+god("limit(sin(x)/x,x)")
+god("integrate(sin(cos(x))*sin(x),x)")
+god("integrate(1/(x*(x+2)),x)")
+god("pdif(sin(x)*x,x)")
+god("integrate(sin(x)^4,x)")
 import random
 def binary_random(*shape):
     if len(shape) == 0:
@@ -315,24 +319,65 @@ def binary_random(*shape):
     return [binary_random(*shape[1:]) for _ in range(shape[0])]
 activation_function = parse("sigmoid(Z)")
 detail = []
-detail.append({"dim":[6,6,3]})
-detail.append({"dim":[2,2,3], "type":"convolution", "activation":activation_function})
-detail.append({"dim":[2], "type":"dense", "activation":activation_function})
+detail.append({"dim":[4], "type":"dense", "activation":activation_function})
+detail.append({"dim":[4], "type":"dense", "activation":activation_function})
+detail.append({"dim":[4], "type":"dense", "activation":activation_function})
 nn = NeuralNetwork(detail).model("image")
-train_x = binary_random(3, 6, 6, 3)
-train_y = binary_random(3, 2)
+train_x = binary_random(1, 4)
+train_y = binary_random(1, 4)
 nn.train(train_x, train_y, 12, 10000, 1)
 for item in train_x:
     print(nn.predict(item))
     print(train_y.pop(0))
-    print()
-print()
+eq = simplify(parse("pdif(u,x)+pdif(u,y)=0"))
+print(solve_pde(eq))
 ```
 
 #### Output
 
 ```
-matrix calculus formulas compiled
+loading formulas from file...
+done
+
+? abs(x)<1
+thinking...
+(-1+abs(x))<0
+(((-1-x)<0)&(x<0))|(((-1+x)<0)&((x=0)|~((x=0)|(x<0))))
+x∈(-1,1)
+=> x∈(-1,1)
+
+? limit(sin(x)/x,x)
+thinking...
+=> 1
+
+? integrate(sin(cos(x))*sin(x),x)
+thinking...
+integrate((sin(cos(x))*sin(x)),x)
+integrate(((cos((cos(x)-x))/2)+(-cos((cos(x)+x))/2)),x)
+(integrate(cos((cos(x)-x)),x)/2)+(-integrate(cos((cos(x)+x)),x)/2)
+subs(integrate(-sin(y),y),y,cos(x))
+subs(cos(y),y,cos(x))
+=> cos(cos(x))
+
+? integrate(1/(x*(x+2)),x)
+thinking...
+integrate((1/((2+x)*x)),x)
+integrate(((-1/(2*x))+(1/(2*(2+x)))),x)
+(log(abs((2+x)))/2)+(-log(abs(x))/2)
+=> (log(abs((2+x)))/2)+(-log(abs(x))/2)
+
+? pdif(sin(x)*x,x)
+thinking...
+=> (cos(x)*x)+sin(x)
+
+? integrate(sin(x)^4,x)
+thinking...
+integrate((sin(x)^4),x)
+integrate((sin(x)^4),x)
+integrate(((3/8)+(cos((4*x))/8)+(-cos((2*x))/2)),x)
+((3*x)/8)+(-sin((2*x))/4)+(sin((4*x))/32)
+=> ((3*x)/8)+(-sin((2*x))/4)+(sin((4*x))/32)
+
 gradients calculated
 calculated the equation of every weight in the network
 epoch 0/10000
@@ -346,14 +391,9 @@ epoch 7000/10000
 epoch 8000/10000
 epoch 9000/10000
 
-[0.9919816718627309, 0.9985494959144323]
-[1, 1]
-
-[0.9862372758368634, 0.9960769568908187]
-[1, 1]
-
-[0.015725442209655396, 0.9936864875975912]
-[0, 1]
+[0.996605518637114, 0.9963836179387171, 0.9978967024929718, 0.9965181518637254]
+[1, 1, 1, 1]
+(-f((-y+x))+u)=0
 ```
 
 #### Example Demonstration 9 (automatic testing)

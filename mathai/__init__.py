@@ -1,7 +1,16 @@
+import os
+def _ensure_formulas_compiled():
+    formula_dir = os.path.join(os.path.dirname(__file__), "formula")
+    if not os.path.exists(formula_dir) or not any(f.endswith(".marshal") for f in os.listdir(formula_dir)):
+        print("[mathai] compiling formulas for first-time use... do not terminate")
+        from .formula_data import init_formula
+        init_formula("all", True)
+_ensure_formulas_compiled()
+
 from .ode import diffsolve as ode_solve
 from .ode import diffsolve_sep as ode_shift_term
 
-from .pde import pde_sep, want, absorb
+from .pde import solve_pde
 
 from .qm import hydrogen_gse, helium_gse, power_rule
 

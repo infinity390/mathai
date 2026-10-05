@@ -5,7 +5,7 @@ from .ode import diffsolve as ode_solve
 from .parser import parse
 from .simplify import simplify, log0
 from .base import *
-from .diff import diff
+from .diff import diff, diff2
 from .trig import trig0, trig1, zu_simplify
 from .univariate_inequality import simple_wavycurvy, wavycurvy, prepare, absolute, handle_sqrt, eq2range, domain, Range
 from .fraction import fraction
@@ -295,6 +295,8 @@ def god(string):
     eq = None
     eq = parse(string)
     log = [eq]
+    if "f_pdif" in str_form(eq):
+        eq = diff2(eq)
     if "f_limit" in str_form(eq):
         eq = limit1(limit5(eq))
     elif all(not contain2(eq, "f_"+item) for item in "dif add mul abs pow dif integrate arcsin sin cos log limit eq lt le ge gt".split(" ")) and\
@@ -319,6 +321,7 @@ def god(string):
                 print(eq)
         # eq = trig7(eq)
         print(f"=> {eq}")
+        print()
         return eq
     elif "f_dif" in str_form(eq) or "f_integrate" in str_form(eq):
         if "f_dif" in str_form(eq) and "f_integrate" not in str_form(eq):
