@@ -123,19 +123,24 @@ def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_i
             if out is not None:
                 out = out[::-1][1:]
                 if out[0] != 0:
-                    for i in range(1,len(f.children)):
-                        binding[f.children[i].name] = out[i-1]
-                    binding[f.children[0].name] = TreeNode(item)
+                    local_binding = binding.copy()
+                    for i in range(1, len(f.children)):
+                        local_binding[f.children[i].name] = out[i-1]
+                    local_binding[f.children[0].name] = TreeNode(item)
+                    binding.update(local_binding)
                     return True
+        return False
+
     if f.name in ("f_sum", "f_product") and len(f.children) >= 2:
         op_name = "f_addw" if f.name == "f_sum" else "f_mulw"
         if eq.name == op_name and len(eq.children) >= len(f.children):
-            
+            local_binding = binding.copy()
             if len(f.children) == 2:
-                if f.children[0].name in const_1_vars and f.children[1].name in const_1_vars or\
-                   f.children[0].name not in const_1_vars and f.children[1].name not in const_1_vars:
-                    binding[f.children[0].name] = eq.children[0]
-                    binding[f.children[1].name] = operation(op_name, eq.children[1:])
+                if (f.children[0].name in const_1_vars and f.children[1].name in const_1_vars) or \
+                   (f.children[0].name not in const_1_vars and f.children[1].name not in const_1_vars):
+                    local_binding[f.children[0].name] = eq.children[0]
+                    local_binding[f.children[1].name] = operation(op_name, eq.children[1:])
+                    binding.update(local_binding)
                     return True
                 else:
                     const_term = []
@@ -148,19 +153,22 @@ def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_i
                             non_const_term.append(child)
                         else:
                             const_term.append(child)
-                    if const_term == []:
+                    if not const_term:
                         return False
-                    if non_const_term == []:
-                        binding[f.children[0].name] = const_term[0]
-                        binding[f.children[1].name] = operation(op_name, const_term[1:])
+                    if not non_const_term:
+                        local_binding[f.children[0].name] = const_term[0]
+                        local_binding[f.children[1].name] = operation(op_name, const_term[1:])
+                        binding.update(local_binding)
                         return True
                     else:
                         index = 0
                         if f.children[1].name in const_1_vars:
                             index = 1
-                        binding[f.children[index].name] = operation(op_name, const_term)
-                        binding[f.children[1-index].name] = operation(op_name, non_const_term)
+                        local_binding[f.children[index].name] = operation(op_name, const_term)
+                        local_binding[f.children[1-index].name] = operation(op_name, non_const_term)
+                        binding.update(local_binding)
                         return True
+
     if f.name.startswith("v_") and not f.children:
         f_str = str_form(f)
         if f_str in binding:
@@ -186,7 +194,12 @@ def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_i
                 return True
         return False
 
-    return all(_match_struct_bind_core(ec[i], fc[i], binding, const_1_vars, ignore_set, resolved_ignore) for i in range(n))
+    sub_binding = binding.copy()
+    for i in range(n):
+        if not _match_struct_bind_core(ec[i], fc[i], sub_binding, const_1_vars, ignore_set, resolved_ignore):
+            return False
+    binding.update(sub_binding)
+    return True
 
 def _match_struct_bind(eq, f, binding, const_1_vars=None, ignore_set=None, assigned_mapping=None):
     if assigned_mapping is None:
@@ -197,7 +210,6 @@ def _match_struct_bind(eq, f, binding, const_1_vars=None, ignore_set=None, assig
         ignore_set = set()
         
     pass1_binding = binding.copy()
-    ignore_binding = {}
     _match_struct_bind_core(eq, f, pass1_binding, const_1_vars, ignore_set, set())
     
     resolved_ignore = set()
@@ -206,7 +218,7 @@ def _match_struct_bind(eq, f, binding, const_1_vars=None, ignore_set=None, assig
             resolved_ignore.add(str_form(pass1_binding[ign]))
         if ign in assigned_mapping:
             resolved_ignore.add(str_form(assigned_mapping[ign]))
-            
+
     return _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_ignore)
 
 class _Matcher:
@@ -266,7 +278,6 @@ class _Matcher:
         variables = list(self.vl)
         n = len(variables)
         def check(assigned_mapping):
-            
             if len(assigned_mapping) == n:
                 equation = copy.deepcopy(self.orig_formula)
                 for var_name, cand in assigned_mapping.items():
@@ -295,9 +306,7 @@ class _Matcher:
             return None
         
         is_var = [_is_plain_variable(candidate) for candidate in vc]
-        
         is_const = [("v_" not in str_form(x)) for x in vc]
-        
         same_count = [count_same_nodes(self.orig_formula, TreeNode(x)) for x in variables]
         domains = {}
         for var in variables:
@@ -313,7 +322,6 @@ class _Matcher:
         target = _leaf_count(orig)
         
         def dfs(domains, mapping, count=0, i=0):
-            
             if i == n:
                 return check(mapping)
             if count >= target:
