@@ -459,7 +459,7 @@ def other_node(root):
                         continue
                     else:
                         tmp = frac(eq.children[0].children[0])
-                        if ((tmp is not None and tmp > 0)
+                        if ((tmp is not None and tmp > 0) or eq.children[0].children[0].name in "s_pi s_e".split(" ")
                                 or eq.children[0].children[0].name == "f_abs"):
                             result_map[eq] = eq.children[0].children[0] ** (b * c)
                             continue

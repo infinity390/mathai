@@ -1,7 +1,7 @@
 import itertools
 from .parser import parse, remove_extra_brackets
 from .simplify import simplify, addition_node_mat
-from .formula_data import load_formula
+
 from .base import *
 import random
 import copy

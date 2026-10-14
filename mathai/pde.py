@@ -3,7 +3,6 @@ from .inverse import inverse
 from .ode import diffsolve as ode_solve
 from .integrate import integrate_formula
 from .simplify import simplify
-from .formula_data import load_formula
 
 pde_character = lambda x: load_formula("pde_character")(x)
 def solve_pde(eq):

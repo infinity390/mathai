@@ -1,12 +1,3 @@
-import os
-def _ensure_formulas_compiled():
-    formula_dir = os.path.join(os.path.dirname(__file__), "formula")
-    if not os.path.exists(formula_dir) or not any(f.endswith(".marshal") for f in os.listdir(formula_dir)):
-        print("[mathai] compiling formulas for first-time use... do not terminate")
-        from .formula_data import init_formula
-        init_formula("all", True)
-_ensure_formulas_compiled()
-
 from .ode import diffsolve as ode_solve
 from .ode import diffsolve_sep as ode_shift_term
 
@@ -35,9 +26,7 @@ from .parser import parse, remove_extra_brackets
 
 from .simplify import simplify, other_node, multiply_node, addition_node, log0
 
-from .formula_interpretor import formula_interpret
-
-from .formula_data import init_formula, compile_formula, load_formula, load_formula_from_file
+from .formula_applier import formula_applier, formula_list_applier
 
 from .integrate import integrate_subs_main as integrate_subs
 from .integrate import byparts as integrate_byparts

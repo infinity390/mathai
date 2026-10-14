@@ -215,6 +215,16 @@ def str_form(node):
     if not isinstance(node, TreeNode):
         return "d_"+str(node)
     return recursive_str(node)
+def str_form_no_var(node):
+    def recursive_str(node, depth=0):
+        name = "v_" if node.name.startswith("v_") else node.name
+        result = "{}{}".format(' ' * depth, name)
+        for child in node.children:
+            result += "\n" + recursive_str(child, depth + 1)
+        return result
+    if not isinstance(node, TreeNode):
+        return "d_" + str(node)
+    return recursive_str(node)
 def replace(equation, find, r):
   if str_form(equation) == str_form(find):
     return r

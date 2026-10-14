@@ -9,7 +9,7 @@ from .parser import parse
 from .fraction import fraction
 from .factor import rationalize_sqrt
 from .inverse import inverse
-from .formula_data import load_formula
+from .formula_applier import formula_list_applier
 from .univariate_inequality import simple_wavycurvy, eq2range, Range, range2eq2
 trig_sin_table = {
     (0,1): parse("0"),
@@ -373,7 +373,10 @@ def trig6(eq):
     eq = trig5(simplify(fraction(eq)))
     return eq
 
-trig5 = lambda x: load_formula("trigonometry_misc")(x)
+trig5_s = """1/(1+sin(x)) (1-sin(x))/cos(x)^2 [] x _ _ _
+1/(1+cos(x)) (1-cos(x))/sin(x)^2 [] x _ _ _"""
+
+trig5 = lambda x: formula_list_applier(x, trig5_s)
 def trig2(eq):
     if eq.name != "f_add":
         return TreeNode(eq.name, [trig2(child) for child in eq.children])

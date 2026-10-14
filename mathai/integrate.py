@@ -8,7 +8,7 @@ from .fraction import fraction
 from .simplify import simplify
 from .expand import expand
 from .base import *
-from .formula_data import load_formula
+from .formula_applier import formula_list_applier
 from .inverse import inverse
 from .tool import poly
 from fractions import Fraction
@@ -23,6 +23,12 @@ def all_branch(eq):
     for child in eq.children:
         out += all_branch(child)
     return list(set(out))
+is_integrate_subs_s = """poly(x,a,b,c) true [] x [a,b,c] _ _
+a*x+b true [] x [a,b] _ _
+a false [] x a _ _"""
+
+is_integrate_subs = lambda x: formula_list_applier(x, is_integrate_subs_s)
+
 def subs_heuristic(eq, var):
     output = []
     last = []
@@ -60,7 +66,8 @@ def subs_heuristic(eq, var):
     tmp = list(set([simplify(tree_form(x)) for x in output]))
     tmp = sorted(tmp, key=lambda x: len(str_form(x)))
     poly_term = None
-    fx = load_formula("is_integrate_subs")
+    
+    fx = is_integrate_subs
     output = []
     if set(all_branch(eq)) <= set("f_add f_mul f_pow".split(" ")):
         for item in tmp:
@@ -346,8 +353,38 @@ def byparts(eq):
         eq = eq2
     return TreeNode(eq.name, [byparts(child) for child in eq.children])
 
-integrate_formula = lambda x: load_formula("integration")(x)
-integrate_trig_formula = lambda x: load_formula("integration_trig")(x)
+integrate_formula_s = """
+integrate(x^2*e^(poly(x,a,b)),x) ((x^2/a)-(2*x/(a^2))+(2/(a^3)))*e^(a*x+b) [] x [a,b] _ _
+integrate(x*e^(poly(x,a,b)),x) ((x/a)-(1/(a^2)))*e^(a*x+b) [] x [a,b] _ _
+integrate(e^(poly(x,a,b)),x) e^(a*x+b)/a [] x [a,b] _ _
+integrate(1/(poly(x,a,b)),x) log(abs(a*x+b))/a [] x [a,b] _ _
+integrate((poly(x,a,b))^c,x) (a*x+b)^(c+1)/(a*(c+1)) [] x [a,b,c] _ _
+integrate(1/cos(poly(x,a,b))^2,x) tan(a*x+b)/a [] x [a,b] _ _
+integrate(1/sin(poly(x,a,b))^2,x) -cot(a*x+b)/a [] x [a,b] _ _
+integrate(1/cos(poly(x,a,b)),x) log(abs((1+sin(a*x+b))/cos(a*x+b)))/a [] x [a,b] _ _
+integrate(1/sin(poly(x,a,b)),x) log(abs(tan((a*x+b)/2)))/a [] x [a,b] _ _
+integrate(sin(poly(x,a,b))^2/cos(a*x+b)^2,x) tan(a*x+b)/a-x [] x [a,b] _ _
+integrate(sin(poly(x,a,b))/(cos(a*x+b)^2),x) 1/(a*cos(a*x+b)) [] x [a,b] _ _
+integrate(sin(poly(x,a,b)),x) -cos(a*x+b)/a [] x [a,b] _ _
+integrate(cos(poly(x,a,b)),x) sin(a*x+b)/a [] x [a,b] _ _
+integrate(sum(a,b),x) integrate(a,x)+integrate(b,x) [] x _ _ _
+integrate(x,x) x^2/2 [] x _ _ _
+integrate(a,x) a*x [] x a _ _
+integrate(product(a,b),x) a*integrate(b,x) [] x a _ _
+"""
+integrate_formula = lambda x: formula_list_applier(x, integrate_formula_s)
+
+integrate_trig_s = """integrate(cos(poly(x,a,b))/sin(poly(x,a,b)),x) log(abs(sin(a*x+b)))/a [] x [a,b] _ _
+integrate(sin(poly(x,a,b))/cos(poly(x,a,b)),x) -(log(abs(cos(poly(x,a,b))))/a) [] x [a,b] _ _
+integrate((sin(x)/cos(x))^a,x) tan(x)^(a-1)/(a-1)-integrate((sin(x)/cos(x))^(a-2),x) [] x a a _
+integrate((cos(x)/sin(x))^a,x) -(cot(x)^(a-1)/(a-1))-integrate((cos(x)/sin(x))^(a-2),x) [] x a a _
+integrate(cos(x)^a/sin(x),x) cos(x)^(a-1)/(a-1)+integrate(cos(x)^(a-2)/sin(x),x) [] x a a _
+integrate(sin(x)^a/cos(x),x) -(sin(x)^(a-1)/(a-1))+integrate(sin(x)^(a-2)/cos(x),x) [] x a a _
+integrate(sin(x)^a*cos(x)^b,x) -(sin(x)^(a+1)*cos(x)^(b+1)/(b+1))+(a+b+2)/(b+1)*integrate(sin(x)^a*cos(x)^(b+2),x) [] x [a,b] _ b
+integrate(sin(x)^a*cos(x)^b,x) sin(x)^(a+1)*cos(x)^(b+1)/(a+1)+(a+b+2)/(a+1)*integrate(sin(x)^(a+2)*cos(x)^b,x) [] x [a,b] _ a
+integrate(sin(x)^a,x) sin(x)^(a+1)*cos(x)/(a+1)+(a+2)/(a+1)*integrate(sin(x)^(a+2),x) [] x a _ a
+integrate(cos(x)^a,x) -(sin(x)*cos(x)^(a+1)/(a+1))+(a+2)/(a+1)*integrate(cos(x)^(a+2),x) [] x a _ a"""
+integrate_trig_formula = lambda x: formula_list_applier(x, integrate_trig_s)
 
 def shorten(eq):
     if eq.name.startswith("d_"):

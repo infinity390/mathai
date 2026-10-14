@@ -19,7 +19,6 @@ from .integrate import integrate_formula, integrate_full, integrate_definite
 from .integrate import normalize as integration_basic
 
 from .diff import diff
-from .formula_data import load_formula
 
 def helium_gse():
     basic_int = lambda x: dowhile(x, lambda y: expand(simplify(integrate_formula(y))))

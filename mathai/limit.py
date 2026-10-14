@@ -7,7 +7,7 @@ from .trig import trig0
 from .fraction import fraction, fraction0
 from .tool import poly
 from .printeq import print_raw
-from .formula_data import load_formula
+
 def substitute_val(eq, val, var="v_0"):
     eq = replace(eq, tree_form(var), tree_form("d_"+str(val)))
     return eq
