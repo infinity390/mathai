@@ -1,36 +1,68 @@
-import math
 import copy
 import itertools
+from functools import lru_cache
 from .base import *
 from .parser import parse
 from .expand import expand
-from fractions import Fraction
 from .simplify import simplify
-
 _W_NAMES = {"f_add": "f_addw", "f_mul": "f_mulw", "f_hadamard": "f_hadamardw", "f_wadd": "f_waddw"}
-_COMMUTATIVE = ("f_addw", "f_mulw")
-_LABEL_PREFIXES = ("f_", "s_", "d_")
-
+_COMMUTATIVE = frozenset(("f_addw", "f_mulw"))
+_LABEL_PREFIXES = frozenset(("f_", "s_", "d_"))
+_SPECIAL_PATTERN = frozenset(("f_poly", "f_sum", "f_product"))
+_AGG_NAMES = frozenset(("f_addw", "f_add", "f_mulw", "f_mul", "f_product", "f_sum", "f_poly"))
+_EXTRACT_NAMES = frozenset(("f_add", "f_wadd", "f_wmul", "f_mul", "f_product", "f_sum", "f_poly"))
+_DE_W_NAMES = frozenset(("f_addw", "f_mulw", "f_waddw", "f_hadamardw"))
+def transform_dfs(node, fn, stable=None):
+    if stable is not None and id(node) in stable:
+        return node
+    children = node.children
+    new_children = [transform_dfs(c, fn, stable) for c in children]
+    unchanged = True
+    for a, b in zip(new_children, children):
+        if a is not b:
+            unchanged = False
+            break
+    cur = node if unchanged else TreeNode(node.name, new_children)
+    out = fn(cur)
+    if out is not cur and out == cur:
+        out = cur
+    if stable is not None and unchanged and out is cur:
+        stable[id(cur)] = cur
+    return out
+def dowhile(x, fn):
+    while True:
+        y = fn(x)
+        if y is x or y == x:
+            return x
+        x = y
+def _fixpoint(eq, fn):
+    stable = {}
+    while True:
+        new = transform_dfs(eq, fn, stable)
+        if new is eq or new == eq:
+            return eq
+        eq = new
 def en_w_addmul_h(eq):
     new_name = _W_NAMES.get(eq.name)
     if new_name is not None:
         return TreeNode(new_name, eq.children)
     return eq
-
 def en_w_addmul(eq):
     return transform_dfs(eq, en_w_addmul_h)
-
+def de_w_addmul_h(eq):
+    if eq.name in _DE_W_NAMES:
+        return TreeNode(eq.name[:-1], eq.children)
+    return eq
+def de_w_addmul(eq):
+    return transform_dfs(eq, de_w_addmul_h)
 def get_name(item):
-    if hasattr(item, "name"):
-        return item.name
-    return str(item)
-
+    return item.name if hasattr(item, "name") else str(item)
 def _collect_labels(node, acc):
-    if node.name in ("f_sum"):
+    if node.name == "f_sum":
         acc.add("f_addw")
-    if node.name in ("f_product"):
+    elif node.name == "f_product":
         acc.add("f_mulw")
-    if node.name in ("f_poly"):
+    elif node.name == "f_poly":
         acc.add("f_mulw")
         acc.add("f_addw")
     name = _W_NAMES.get(node.name, node.name)
@@ -39,39 +71,36 @@ def _collect_labels(node, acc):
     for child in node.children:
         _collect_labels(child, acc)
     return acc
-
-def _node_count(node):
-    if not node.children:
-        return 1
-    return 1 + sum(_node_count(c) for c in node.children)
-
+def _node_names(node, acc):
+    acc.add(node.name)
+    for c in node.children:
+        _node_names(c, acc)
+    return acc
 def _leaf_count(node):
     if not node.children:
         return 1
     return sum(_leaf_count(c) for c in node.children)
-
 def _extract_f_sum_vars(node, v_set):
-    if node.name in ("f_add", "f_wadd", "f_wmul", "f_mul", "f_product", "f_sum", "f_poly"):
-        for child in node.children:
-            if child.name.startswith("v_") and not child.children:
-                v_set.add(child.name)
-            else:
-                _extract_f_sum_vars(child, v_set)
+    is_agg = node.name in _EXTRACT_NAMES
     for child in node.children:
-        _extract_f_sum_vars(child, v_set)
-
-def _variable_candidates(eq, out):
-    if eq.name in ("f_addw", "f_mulw"):
+        if is_agg and child.name.startswith("v_") and not child.children:
+            v_set.add(child.name)
+        else:
+            _extract_f_sum_vars(child, v_set)
+def _collect_candidates(eq, out):
+    if eq.name in _COMMUTATIVE:
         base = eq.name[:-1]
-        for i in range(1, len(eq.children)):
-            for item in itertools.combinations(eq.children, i):
+        ch = eq.children
+        for i in range(1, len(ch)):
+            for item in itertools.combinations(ch, i):
                 out.append(operation(base, list(item)))
     else:
         out.extend(eq.children)
     for child in eq.children:
-        _variable_candidates(child, out)
-    return list(set(out))
-
+        _collect_candidates(child, out)
+def _variable_candidates(eq, out):
+    _collect_candidates(eq, out)
+    return list(dict.fromkeys(out))
 def _as_exprs(x):
     if x is None:
         return []
@@ -81,173 +110,166 @@ def _as_exprs(x):
             out += _as_exprs(item)
         return out
     return [x]
-
 def _subst(node, mapping):
     if not node.children and node.name in mapping:
         return copy.deepcopy(mapping[node.name])
     return TreeNode(node.name, [_subst(c, mapping) for c in node.children])
-
 def _value_of(expr, mapping):
     sub = _subst(expr, mapping)
     v = simplify(sub)
     if v is not None:
         v = frac(sub)
     return v
-
 def count_same_nodes(node, cmp):
     count = 1 if node == cmp else 0
     for child in node.children:
         count += count_same_nodes(child, cmp)
     return count
-
 def count_v_nodes(node):
-    if node.name in "f_addw f_add f_mulw f_mul f_product f_sum f_poly".split(" "):
-        count = 0
-        for child in node.children:
-            if child.name.startswith("v_"):
-                continue
-            count += count_v_nodes(child)
-        return count
+    if node.name in _AGG_NAMES:
+        return sum(count_v_nodes(c) for c in node.children if not c.name.startswith("v_"))
     count = 1 if node.name.startswith("v_") else 0
     for child in node.children:
         count += count_v_nodes(child)
     return count
-
 def _is_plain_variable(node):
     return node.name.startswith("v_") and not node.children
-
-def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_ignore):
-    if f.name == "f_poly":
+def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_ignore, free_vars):
+    fname = f.name
+    if fname == "f_poly":
+        eq_plain = de_w_addmul(eq)
+        degree = len(f.children) - 1
         for item in vlist(eq):
-            out = extract_polynomial_coefficients(de_w_addmul(eq), item, len(f.children)-1)
+            out = extract_polynomial_coefficients(eq_plain, item, degree)
             if out is not None:
                 out = out[::-1][1:]
                 if out[0] != 0:
                     local_binding = binding.copy()
                     for i in range(1, len(f.children)):
-                        local_binding[f.children[i].name] = out[i-1]
+                        local_binding[f.children[i].name] = out[i - 1]
                     local_binding[f.children[0].name] = TreeNode(item)
                     binding.update(local_binding)
                     return True
         return False
-
-    if f.name in ("f_sum", "f_product") and len(f.children) >= 2:
-        op_name = "f_addw" if f.name == "f_sum" else "f_mulw"
+    if fname in ("f_sum", "f_product") and len(f.children) >= 2:
+        op_name = "f_addw" if fname == "f_sum" else "f_mulw"
         if eq.name == op_name and len(eq.children) >= len(f.children):
-            local_binding = binding.copy()
             if len(f.children) == 2:
-                if (f.children[0].name in const_1_vars and f.children[1].name in const_1_vars) or \
-                   (f.children[0].name not in const_1_vars and f.children[1].name not in const_1_vars):
-                    local_binding[f.children[0].name] = eq.children[0]
-                    local_binding[f.children[1].name] = operation(op_name, eq.children[1:])
+                local_binding = binding.copy()
+                c0, c1 = f.children[0].name, f.children[1].name
+                if (c0 in const_1_vars) == (c1 in const_1_vars):
+                    local_binding[c0] = eq.children[0]
+                    local_binding[c1] = operation(op_name, eq.children[1:])
                     binding.update(local_binding)
                     return True
-                else:
-                    const_term = []
-                    non_const_term = []
-                    
-                    for child in eq.children:
-                        if vlist(child) == []:
-                            const_term.append(child)
-                        elif not set(vlist(child)) < resolved_ignore:
-                            non_const_term.append(child)
-                        else:
-                            const_term.append(child)
-                    if not const_term:
-                        return False
-                    if not non_const_term:
-                        local_binding[f.children[0].name] = const_term[0]
-                        local_binding[f.children[1].name] = operation(op_name, const_term[1:])
-                        binding.update(local_binding)
-                        return True
+                const_term, non_const_term = [], []
+                for child in eq.children:
+                    vl = vlist(child)
+                    if vl and not set(vl) < resolved_ignore:
+                        non_const_term.append(child)
                     else:
-                        index = 0
-                        if f.children[1].name in const_1_vars:
-                            index = 1
-                        local_binding[f.children[index].name] = operation(op_name, const_term)
-                        local_binding[f.children[1-index].name] = operation(op_name, non_const_term)
-                        binding.update(local_binding)
-                        return True
-
-    if f.name.startswith("v_") and not f.children:
+                        const_term.append(child)
+                if not const_term:
+                    return False
+                if not non_const_term:
+                    local_binding[c0] = const_term[0]
+                    local_binding[c1] = operation(op_name, const_term[1:])
+                else:
+                    index = 1 if c1 in const_1_vars else 0
+                    local_binding[f.children[index].name] = operation(op_name, const_term)
+                    local_binding[f.children[1 - index].name] = operation(op_name, non_const_term)
+                binding.update(local_binding)
+                return True
+    if fname.startswith("v_") and not f.children and fname in free_vars:
         f_str = str_form(f)
         if f_str in binding:
             return str_form(eq) == str_form(binding[f_str])
-        else:
-            binding[f_str] = eq
-            return True
-
-    if eq.name != f.name:
+        binding[f_str] = eq
+        return True
+    if eq.name != fname:
         return False
-
-    fc = f.children
-    ec = eq.children
+    fc, ec = f.children, eq.children
     n = len(fc)
     if len(ec) != n:
         return False
-
-    if f.name in _COMMUTATIVE and n > 1:
-        for p in itertools.permutations(range(n)):
-            sub_binding = binding.copy()
-            if all(_match_struct_bind_core(ec[p[i]], fc[i], sub_binding, const_1_vars, ignore_set, resolved_ignore) for i in range(n)):
-                binding.update(sub_binding)
-                return True
-        return False
-
+    if fname in _COMMUTATIVE and n > 1:
+        compat = [
+            [
+                (fc[i].name in free_vars and not fc[i].children)
+                or fc[i].name in _SPECIAL_PATTERN
+                or fc[i].name == ec[j].name
+                for j in range(n)
+            ]
+            for i in range(n)
+        ]
+        def search(i, used, b):
+            if i == n:
+                return b
+            for j in range(n):
+                if j in used or not compat[i][j]:
+                    continue
+                sb = b.copy()
+                if _match_struct_bind_core(ec[j], fc[i], sb, const_1_vars,
+                                           ignore_set, resolved_ignore, free_vars):
+                    r = search(i + 1, used | {j}, sb)
+                    if r is not None:
+                        return r
+            return None
+        result = search(0, frozenset(), binding)
+        if result is None:
+            return False
+        binding.update(result)
+        return True
     sub_binding = binding.copy()
     for i in range(n):
-        if not _match_struct_bind_core(ec[i], fc[i], sub_binding, const_1_vars, ignore_set, resolved_ignore):
+        if not _match_struct_bind_core(ec[i], fc[i], sub_binding, const_1_vars,
+                                       ignore_set, resolved_ignore, free_vars):
             return False
     binding.update(sub_binding)
     return True
-
-def _match_struct_bind(eq, f, binding, const_1_vars=None, ignore_set=None, assigned_mapping=None):
-    if assigned_mapping is None:
-        assigned_mapping = {}
-    if const_1_vars is None:
-        const_1_vars = set()
-    if ignore_set is None:
-        ignore_set = set()
-        
-    pass1_binding = binding.copy()
-    _match_struct_bind_core(eq, f, pass1_binding, const_1_vars, ignore_set, set())
-    
+def _match_struct_bind(eq, f, binding, const_1_vars=None, ignore_set=None,
+                       assigned_mapping=None, free_vars=frozenset()):
+    assigned_mapping = assigned_mapping or {}
+    const_1_vars = const_1_vars or set()
+    ignore_set = ignore_set or set()
     resolved_ignore = set()
-    for ign in ignore_set:
-        if ign in pass1_binding:
-            resolved_ignore.add(str_form(pass1_binding[ign]))
-        if ign in assigned_mapping:
-            resolved_ignore.add(str_form(assigned_mapping[ign]))
-
-    return _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_ignore)
-
+    if ignore_set:
+        pass1_binding = binding.copy()
+        _match_struct_bind_core(eq, f, pass1_binding, const_1_vars, ignore_set, resolved_ignore, free_vars)
+        for ign in ignore_set:
+            if ign in pass1_binding:
+                resolved_ignore.add(str_form(pass1_binding[ign]))
+            if ign in assigned_mapping:
+                resolved_ignore.add(str_form(assigned_mapping[ign]))
+    return _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_ignore, free_vars)
 class _Matcher:
     def __init__(self, formula, formula_out, positive=None, negative=None, ignore_list=None, const_1=None):
         self.orig_formula = formula
         self.formula_out = formula_out
-        self.formula_w = en_w_addmul(copy.deepcopy(formula))
+        self.formula_w = en_w_addmul(formula)
         self.root_name = self.formula_w.name
-        self.labels = _collect_labels(self.formula_w, set())
-        
-        vl_set = set(vlist(self.formula_w))
         f_sum_vars = set()
         _extract_f_sum_vars(self.formula_w, f_sum_vars)
-        vl_set = vl_set - f_sum_vars
-        self.vl = list(vl_set)
-        
+        self.free_vars = frozenset(f_sum_vars)
         self.positive = _as_exprs(positive)
         self.negative = _as_exprs(negative)
-        
-        ignore = {get_name(item) for item in _as_exprs(ignore_list)}
         self.ignore_list_exprs = _as_exprs(ignore_list)
-        self.ignore_set = ignore
-        self.must_be_var = {name: (name in ignore and name not in f_sum_vars) for name in self.vl}
-        self.ignore_given = bool(ignore)
-        
-        const = {get_name(item) for item in _as_exprs(const_1)}
-        self.must_be_const = {name: (name in const) for name in self.vl}
-        self.const_1_vars = const
-
+        self.ignore_set = {get_name(item) for item in self.ignore_list_exprs}
+        self.ignore_names = {item.name for item in self.ignore_list_exprs}
+        names = set(vlist(self.formula_w)) - f_sum_vars
+        self.vl = sorted(names, key=lambda n: (0 if n in self.ignore_set else 1, n))
+        self.must_be_var = {n: (n in self.ignore_set and n not in f_sum_vars) for n in self.vl}
+        self.const_1_vars = {get_name(item) for item in _as_exprs(const_1)}
+        self.must_be_const = {n: (n in self.const_1_vars) for n in self.vl}
+        self.root_is_free = (
+            (self.root_name.startswith("v_") and not self.formula_w.children)
+            or self.root_name in _SPECIAL_PATTERN
+        )
+        self.required = {
+            n for n in _node_names(self.formula_w, set())
+            if n[:2] in _LABEL_PREFIXES and n not in _SPECIAL_PATTERN
+        }
+        self._same_count = [count_same_nodes(self.orig_formula, TreeNode(x)) for x in self.vl]
     def conditions_hold(self, mapping):
         for exprs, sign in ((self.positive, 1), (self.negative, -1)):
             for expr in exprs:
@@ -255,117 +277,107 @@ class _Matcher:
                 if v is None or sign * v < 0:
                     return False
         return True
-
     def __call__(self, equation):
-        equation = simplify(equation)
-        orig = equation
-        eq_w = en_w_addmul(copy.deepcopy(orig))
-
-        vc = [eq_w] + _variable_candidates(eq_w, [])
-        seen = set()
-        unique_vc = []
-        for item in vc:
+        orig = simplify(equation)
+        eq_w = en_w_addmul(orig)
+        if not self.root_is_free and eq_w.name != self.root_name:
+            return orig
+        if self.required and not self.required <= _node_names(eq_w, set()):
+            return orig
+        seen, vc = set(), []
+        for item in [eq_w] + _variable_candidates(eq_w, []):
             de_item = de_w_addmul(item)
             s = str_form(de_item)
             if s not in seen:
                 seen.add(s)
-                unique_vc.append(de_item)
-        vc = unique_vc
-        result = self._assign(copy.deepcopy(orig), vc)
+                vc.append(de_item)
+        result = self._assign(orig, eq_w, vc)
         return orig if result is None else result
-    
-    def _assign(self, orig, vc):
-        variables = list(self.vl)
+    def _assign(self, orig, eq_w, vc):
+        variables = self.vl
         n = len(variables)
         def check(assigned_mapping):
-            if len(assigned_mapping) == n:
-                equation = copy.deepcopy(self.orig_formula)
-                for var_name, cand in assigned_mapping.items():
-                    equation = replace(equation, TreeNode(var_name), cand)
-                equation = flatten_tree(equation)
-                eq_w = en_w_addmul(copy.deepcopy(orig))
-                eq_cand_w = en_w_addmul(copy.deepcopy(equation))
-                binding = {}
-                if not _match_struct_bind(eq_w, eq_cand_w, binding, self.const_1_vars, set([item.name for item in self.ignore_list_exprs]), assigned_mapping):
-                    return None
-                binding = {key: de_w_addmul(item) for key, item in binding.items()}
-                assigned_mapping.update(binding)
-                
-                if self.positive != [] or self.negative != []:
-                    if not self.conditions_hold(assigned_mapping):
+            if len(assigned_mapping) != n:
+                return None
+            equation = copy.deepcopy(self.orig_formula)
+            for var_name, cand in assigned_mapping.items():
+                equation = replace(equation, TreeNode(var_name), cand)
+            equation = flatten_tree(equation)
+            eq_cand_w = en_w_addmul(equation)
+            binding = {}
+            if not _match_struct_bind(eq_w, eq_cand_w, binding, self.const_1_vars,
+                                    self.ignore_names, assigned_mapping, self.free_vars):
+                return None
+            full_mapping = dict(assigned_mapping)
+            full_mapping.update({k: de_w_addmul(v) for k, v in binding.items()})
+            banned = set()
+            for ign in self.ignore_names:
+                if ign in full_mapping:
+                    banned.update(vlist(full_mapping[ign]))
+            if banned:
+                for cname in self.const_1_vars:
+                    if cname in full_mapping and banned.intersection(vlist(full_mapping[cname])):
                         return None
-                result = copy.deepcopy(self.formula_out)
-                for var_name, cand in assigned_mapping.items():
-                    result = replace(result, TreeNode(var_name), cand)
-                return result
-            return None
+            if (self.positive or self.negative) and not self.conditions_hold(full_mapping):
+                return None
+            result = copy.deepcopy(self.formula_out)
+            for var_name, cand in full_mapping.items():
+                result = replace(result, TreeNode(var_name), cand)
+            return result
         if n == 0:
             return check({})
-        
         if not vc:
             return None
-        
-        is_var = [_is_plain_variable(candidate) for candidate in vc]
-        is_const = [("v_" not in str_form(x)) for x in vc]
-        same_count = [count_same_nodes(self.orig_formula, TreeNode(x)) for x in variables]
-        domains = {}
-        for var in variables:
-            valid = []
-            for i, cand in enumerate(vc):
-                if self.must_be_var[var] and not is_var[i]:
-                    continue
-                if self.must_be_const[var] and not is_const[i]:
-                    continue
-                valid.append(i)
-            domains[var] = valid
-
+        is_var = [_is_plain_variable(c) for c in vc]
+        cand_vars = [frozenset(vlist(c)) for c in vc]
+        leaves = [_leaf_count(c) for c in vc]
+        same_count = self._same_count
+        rng = range(len(vc))
+        domains = [
+            [i for i in rng if not (self.must_be_var[v] and not is_var[i])]
+            for v in variables
+        ]
         target = _leaf_count(orig)
-        
-        def dfs(domains, mapping, count=0, i=0):
+        def dfs(mapping, count, i, banned):
             if i == n:
                 return check(mapping)
             if count >= target:
                 return None
-            var_name = variables[i]
-            sc = same_count[i]
-            for item in domains[var_name]:
-                cand = vc[item]
-                mapping[var_name] = cand
-                out = dfs(domains, mapping, count + _leaf_count(cand) * sc, i + 1)
+            var_name, sc = variables[i], same_count[i]
+            must_const = self.must_be_const[var_name]
+            must_var = self.must_be_var[var_name]
+            for idx in domains[i]:
+                if must_const and banned and not banned.isdisjoint(cand_vars[idx]):
+                    continue
+                mapping[var_name] = vc[idx]
+                nb = (banned | cand_vars[idx]) if must_var else banned
+                out = dfs(mapping, count + leaves[idx] * sc, i + 1, nb)
                 if out is not None:
                     return out
                 del mapping[var_name]
             return None
-
-        return dfs(domains, {})
-
+        return dfs({}, 0, 0, frozenset())
 def structure(equation, formula, formula_out, ignore_list=None, const_1=None, positive=None, negative=None):
     return _Matcher(formula, formula_out, positive, negative, ignore_list, const_1)(equation)
-
 def convert_lst(eq):
     if eq.name == "f_list":
         return [convert_lst(child) for child in eq.children]
     return TreeNode(eq.name, [convert_lst(child) for child in eq.children])
-
 def convert_string(s):
     if s == "_":
         return None
     return convert_lst(parse(s))
-
 def wrap_h(eq, fx):
     out = fx(simplify(eq))
-    if out is not None:
-        return out
-    return eq
-
+    return eq if out is None else out
 def _replace_in(x, key, value):
     if x is None:
         return None
     if isinstance(x, list):
         return [_replace_in(item, key, value) for item in x]
     return replace(x, key, value)
-
-def formula_applier(eq, s):
+@lru_cache(maxsize=None)
+def _compile_rule(s):
     item = s.split(" ")
     a, b = (simplify(parse(x)) for x in item[:2])
     subs = {}
@@ -374,62 +386,47 @@ def formula_applier(eq, s):
     lst = [convert_string(x) for x in item[3:]]
     lst += [None] * (4 - len(lst))
     ignore_list, const_1, positive, negative = lst[:4]
-    subs_x = list(subs)
-    subs_y = list(subs.values())
-    for combination in itertools.product(*subs_y):
+    keys = tuple(subs)
+    matchers = []
+    for combination in itertools.product(*subs.values()):
         x, y, pos, neg = a, b, positive, negative
-        for key, value in zip(subs_x, combination):
+        for key, value in zip(keys, combination):
             if value is not None:
                 x = replace(x, key, value)
                 y = replace(y, key, value)
                 pos = _replace_in(pos, key, value)
                 neg = _replace_in(neg, key, value)
-        x, y = simplify(x), simplify(y)
-        matcher = _Matcher(x, y, pos, neg, ignore_list, const_1)
-        eq = dowhile(eq, lambda u: transform_dfs(u, matcher))
+        matchers.append(_Matcher(simplify(x), simplify(y), pos, neg, ignore_list, const_1))
+    return tuple(matchers)
+def formula_applier(eq, s):
+    for matcher in _compile_rule(s):
+        eq = _fixpoint(eq, matcher)
     return eq
-
+@lru_cache(maxsize=None)
+def _split_rules(s):
+    return tuple(line for line in s.strip().split("\n") if line.strip())
+def formula_list_applier_h(eq, s):
+    for item in _split_rules(s):
+        eq = formula_applier(eq, item)
+    return eq
+def formula_list_applier(eq, s):
+    return dowhile(eq, lambda x: formula_list_applier_h(x, s))
 def extract_polynomial_coefficients(eq, var, degree):
     current_eq = copy.deepcopy(eq)
     zero_node = TreeNode("d_0")
     var_node = TreeNode(var)
     coefficients = []
-    for i in range(degree + 1):
-        subbed_zero = replace(copy.deepcopy(current_eq), var_node, zero_node)
-        c_val = simplify(subbed_zero)
+    for _ in range(degree + 1):
+        c_val = simplify(replace(copy.deepcopy(current_eq), var_node, zero_node))
         if c_val is None:
             return None
         coefficients.append(c_val)
-        num = operation("f_sub", [current_eq, c_val])
-        simplified_num = simplify(num)
+        simplified_num = simplify(operation("f_sub", [current_eq, c_val]))
         if simplified_num == 0:
-            while len(coefficients) <= degree:
-                coefficients.append(TreeNode("d_0"))
+            coefficients.extend(TreeNode("d_0") for _ in range(degree + 1 - len(coefficients)))
             return coefficients
-        div_node = operation("f_div", [simplified_num, var_node])
-        current_eq = simplify(expand(simplify(div_node)))
+        current_eq = simplify(expand(simplify(operation("f_div", [simplified_num, var_node]))))
         if current_eq is None:
             return None
-    final_sub = replace(copy.deepcopy(current_eq), var_node, zero_node)
-    final_check = simplify(final_sub)
-    if final_check != 0:
-        return None
-    return coefficients
-
-def formula_list_applier_h(eq, s):
-    for item in s.strip().split("\n"):
-        if not item.strip():
-            continue
-        eq = formula_applier(eq, item)
-    return eq
-
-def formula_list_applier(eq, s):
-    return dowhile(eq, lambda x: formula_list_applier_h(x, s))
-
-def de_w_addmul_h(eq):
-    if eq.name in ("f_addw", "f_mulw", "f_waddw", "f_hadamardw"):
-        return TreeNode(eq.name[:-1], eq.children)
-    return eq
-
-def de_w_addmul(eq):
-    return transform_dfs(eq, de_w_addmul_h)
+    final_check = simplify(replace(copy.deepcopy(current_eq), var_node, zero_node))
+    return coefficients if final_check == 0 else None

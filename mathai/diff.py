@@ -3,7 +3,8 @@ from .base import *
 from .parser import parse
 from .formula_applier import formula_list_applier
 
-diff2_s = """pdif(a^b,x) b*(a^(b-1))*pdif(a,x)+(a^b)*log(a)*pdif(b,x) [] x _ _ _
+diff2_s = """pdif(e^a,x) e^a*pdif(a,x) [] x _ _ _
+pdif(a^b,x) b*(a^(b-1))*pdif(a,x)+(a^b)*log(a)*pdif(b,x) [] x _ _ _
 pdif(sin(a),x) cos(a)*pdif(a,x) [] x _ _ _
 pdif(cos(a),x) -sin(a)*pdif(a,x) [] x _ _ _
 pdif(arcsin(a),x) (1/sqrt(1-a^2))*pdif(a,x) [] x _ _ _
@@ -19,4 +20,5 @@ diff2 = lambda x: formula_list_applier(x, diff2_s)
 
 def diff(equation, var=None):
     var = var if var else "v_0"
-    return diff2(simplify(TreeNode("f_pdif", [equation, tree_form(var)])))
+    out = diff2(simplify(TreeNode("f_pdif", [equation, tree_form(var)])))
+    return out

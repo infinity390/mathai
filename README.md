@@ -476,7 +476,6 @@ done
 #### Example Demonstration 11 (resistors in parallel)
 ```python
 from mathai import *
-load_formula_from_file()
 wire_1 = Edge((1, 3))
 wire_2 = Edge((2, 3))
 ohm_r1 = Edge((0, 1), "resistor", parse("x"))
@@ -489,9 +488,6 @@ print(fraction(find_resistance(graph, 0, 3)))
 #### Output
 
 ```
-loading formulas from file...
-done
-
 (x*y)/(x+y)
 ```
 
@@ -508,11 +504,11 @@ print()
 # Engineering Graphics for DEGREE P.I. Varghese
 solve_graphics_string("20 25 0 None None None None None None 30*pi/180 0 60 None None") # 11.14
 print()
-solve_graphics_string("15 25 0 None None None None None None 30*pi/180 0 50 None None") # 11.15
+solve_graphics_string("15 25 0 None None None None None None 30*pi/180 0 50 None None") # 11.16
 print()
 solve_graphics_string("0 -25 0 None None None None None None None 0 55 None 75") # 11.17
 print()
-solve_graphics_string("25 50 0 -30 None None None None None None 0 None None 80") # 11.19
+solve_graphics_string("25 40 0 -30 None None None None None None 0 None None 80") # 11.19
 ```
 
 #### Output
@@ -578,10 +574,10 @@ top_view_length : 75
 line_length : 75
 
 Ax : 25
-Ay : 50
+Ay : 40
 Az : 0
 Bx : -30
-By : 50
+By : 40
 Bz : 5*sqrt(135)
 Bx-Ax : -55
 By-Ay : 0
@@ -591,6 +587,20 @@ inclination_with_HP : 0
 front_view_length : sqrt(3375)
 top_view_length : 80
 line_length : 80
+```
+
+#### Example Demonstration 13 (formula applier)
+```python
+from mathai import *
+formula = "a*x^2+b*x+c a*(x-(-b+sqrt(b^2-4*a*c))/(2*a))*(x-(-b-sqrt(b^2-4*a*c))/(2*a))"
+formula += " [[a,1],[b,0],[b,1]] _ _ _ _"
+question = simplify(parse("sin(x)^2-4*sin(x)+4"))
+print(formula_applier(question, formula))
+```
+
+#### Output
+```
+(-2+sin(x))^2
 ```
 
 ### Questions solved using god() function

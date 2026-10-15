@@ -19,6 +19,7 @@ from .integrate import integrate_formula, integrate_full, integrate_definite
 from .integrate import normalize as integration_basic
 
 from .diff import diff
+from .formula_applier import formula_applier
 
 def helium_gse():
     basic_int = lambda x: dowhile(x, lambda y: expand(simplify(integrate_formula(y))))
@@ -80,7 +81,6 @@ def helium_gse():
       eq = simplify(expand(eq))
       eq = basic_int(eq)
       eq = simplify(fraction(eq))
-      print(eq)
       eq_a = TreeNode("f_limit", [replace(eq, wrt, wrt+a), wrt])
       eq_a = limit1(eq_a)
       eq_b = None
@@ -108,7 +108,6 @@ def helium_gse():
             parse("0"),
             parse("pi")
         )
-        print(1111)
         r_part = integrate_exec(
             theta_part * r**2,
             r,
@@ -155,7 +154,10 @@ def helium_gse():
     hs = inverse(dh, Z.name)
     H = replace(H, Z, hs)
     return compute(simplify(H/e1))
-power_rule = lambda x: load_formula("power_rule")(x)
+
+power_rule_s = "a^sum(b,c) a^b*a^c [] x _ _ _"
+power_rule = lambda x: formula_applier(x, power_rule_s)
+
 def hydrogen_gse():
     basic_int = lambda x: dowhile(x, lambda y: integrate_formula(simplify(expand(simplify(power_rule(y))))))
     algebra = lambda x: dowhile(x, lambda y: expand(simplify(y)))
@@ -177,7 +179,7 @@ def hydrogen_gse():
     integral_psi2 = TreeNode("f_integrate", [psi2 * parse("4")* pi * r**2, r])
     integral_psi2 = basic_int(copy.deepcopy(integral_psi2))
     a = limit1(TreeNode("f_limit", [integral_psi2, r]))
-    b = limit3(TreeNode("f_limitpinf", [integral_psi2, r]))
+    b = limit3(simplify(TreeNode("f_limitpinf", [integral_psi2, r])))
     integral_psi2 = algebra(b-a)
     V = -(k * z * e1**2)/r
     Hpsi = -hbar**2/(2*m) * laplace_psi + V*psi
