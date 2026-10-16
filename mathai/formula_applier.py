@@ -5,13 +5,30 @@ from .base import *
 from .parser import parse
 from .expand import expand
 from .simplify import simplify
-_W_NAMES = {"f_add": "f_addw", "f_mul": "f_mulw", "f_hadamard": "f_hadamardw", "f_wadd": "f_waddw"}
-_COMMUTATIVE = frozenset(("f_addw", "f_mulw"))
+
+_W_NAMES = {
+    "f_add": "f_addw",
+    "f_mul": "f_mulw",
+    "f_hadamard": "f_hadamardw",
+    "f_wadd": "f_waddw",
+    "f_wmul": "f_wmulw",
+}
+_COMMUTATIVE = frozenset(("f_addw", "f_mulw", "f_hadamardw"))
+_ORDERED_ASSOC = frozenset(("f_wmulw",))
 _LABEL_PREFIXES = frozenset(("f_", "s_", "d_"))
-_SPECIAL_PATTERN = frozenset(("f_poly", "f_sum", "f_product"))
-_AGG_NAMES = frozenset(("f_addw", "f_add", "f_mulw", "f_mul", "f_product", "f_sum", "f_poly"))
-_EXTRACT_NAMES = frozenset(("f_add", "f_wadd", "f_wmul", "f_mul", "f_product", "f_sum", "f_poly"))
-_DE_W_NAMES = frozenset(("f_addw", "f_mulw", "f_waddw", "f_hadamardw"))
+_SPECIAL_PATTERN = frozenset(("f_poly", "f_sum", "f_product", "f_hprod"))
+_PATTERN_OPS = {"f_sum": "f_addw", "f_product": "f_mulw", "f_hprod": "f_hadamardw"}
+_AGG_NAMES = frozenset((
+    "f_addw", "f_add", "f_mulw", "f_mul", "f_hadamardw", "f_hadamard",
+    "f_product", "f_sum", "f_hprod", "f_poly",
+))
+_EXTRACT_NAMES = frozenset((
+    "f_add", "f_wadd", "f_waddw", "f_wmul", "f_wmulw",
+    "f_mul", "f_product", "f_sum", "f_hprod", "f_poly",
+))
+_DE_W_NAMES = frozenset(("f_addw", "f_mulw", "f_waddw", "f_hadamardw", "f_wmulw"))
+
+
 def transform_dfs(node, fn, stable=None):
     if stable is not None and id(node) in stable:
         return node
@@ -29,12 +46,16 @@ def transform_dfs(node, fn, stable=None):
     if stable is not None and unchanged and out is cur:
         stable[id(cur)] = cur
     return out
+
+
 def dowhile(x, fn):
     while True:
         y = fn(x)
         if y is x or y == x:
             return x
         x = y
+
+
 def _fixpoint(eq, fn):
     stable = {}
     while True:
@@ -42,26 +63,40 @@ def _fixpoint(eq, fn):
         if new is eq or new == eq:
             return eq
         eq = new
+
+
 def en_w_addmul_h(eq):
     new_name = _W_NAMES.get(eq.name)
     if new_name is not None:
         return TreeNode(new_name, eq.children)
     return eq
+
+
 def en_w_addmul(eq):
     return transform_dfs(eq, en_w_addmul_h)
+
+
 def de_w_addmul_h(eq):
     if eq.name in _DE_W_NAMES:
         return TreeNode(eq.name[:-1], eq.children)
     return eq
+
+
 def de_w_addmul(eq):
     return transform_dfs(eq, de_w_addmul_h)
+
+
 def get_name(item):
     return item.name if hasattr(item, "name") else str(item)
+
+
 def _collect_labels(node, acc):
     if node.name == "f_sum":
         acc.add("f_addw")
     elif node.name == "f_product":
         acc.add("f_mulw")
+    elif node.name == "f_hprod":
+        acc.add("f_hadamardw")
     elif node.name == "f_poly":
         acc.add("f_mulw")
         acc.add("f_addw")
@@ -71,15 +106,21 @@ def _collect_labels(node, acc):
     for child in node.children:
         _collect_labels(child, acc)
     return acc
+
+
 def _node_names(node, acc):
     acc.add(node.name)
     for c in node.children:
         _node_names(c, acc)
     return acc
+
+
 def _leaf_count(node):
     if not node.children:
         return 1
     return sum(_leaf_count(c) for c in node.children)
+
+
 def _extract_f_sum_vars(node, v_set):
     is_agg = node.name in _EXTRACT_NAMES
     for child in node.children:
@@ -87,6 +128,8 @@ def _extract_f_sum_vars(node, v_set):
             v_set.add(child.name)
         else:
             _extract_f_sum_vars(child, v_set)
+
+
 def _collect_candidates(eq, out):
     if eq.name in _COMMUTATIVE:
         base = eq.name[:-1]
@@ -94,13 +137,24 @@ def _collect_candidates(eq, out):
         for i in range(1, len(ch)):
             for item in itertools.combinations(ch, i):
                 out.append(operation(base, list(item)))
+    elif eq.name in _ORDERED_ASSOC:
+        base = eq.name[:-1]
+        ch = eq.children
+        n = len(ch)
+        for length in range(1, n):
+            for s in range(n - length + 1):
+                out.append(operation(base, list(ch[s:s + length])))
     else:
         out.extend(eq.children)
     for child in eq.children:
         _collect_candidates(child, out)
+
+
 def _variable_candidates(eq, out):
     _collect_candidates(eq, out)
     return list(dict.fromkeys(out))
+
+
 def _as_exprs(x):
     if x is None:
         return []
@@ -110,21 +164,29 @@ def _as_exprs(x):
             out += _as_exprs(item)
         return out
     return [x]
+
+
 def _subst(node, mapping):
     if not node.children and node.name in mapping:
         return copy.deepcopy(mapping[node.name])
     return TreeNode(node.name, [_subst(c, mapping) for c in node.children])
+
+
 def _value_of(expr, mapping):
     sub = _subst(expr, mapping)
     v = simplify(sub)
     if v is not None:
         v = frac(sub)
     return v
+
+
 def count_same_nodes(node, cmp):
     count = 1 if node == cmp else 0
     for child in node.children:
         count += count_same_nodes(child, cmp)
     return count
+
+
 def count_v_nodes(node):
     if node.name in _AGG_NAMES:
         return sum(count_v_nodes(c) for c in node.children if not c.name.startswith("v_"))
@@ -132,8 +194,12 @@ def count_v_nodes(node):
     for child in node.children:
         count += count_v_nodes(child)
     return count
+
+
 def _is_plain_variable(node):
     return node.name.startswith("v_") and not node.children
+
+
 def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_ignore, free_vars):
     fname = f.name
     if fname == "f_poly":
@@ -151,8 +217,8 @@ def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_i
                     binding.update(local_binding)
                     return True
         return False
-    if fname in ("f_sum", "f_product") and len(f.children) >= 2:
-        op_name = "f_addw" if fname == "f_sum" else "f_mulw"
+    if fname in _PATTERN_OPS and len(f.children) >= 2:
+        op_name = _PATTERN_OPS[fname]
         if eq.name == op_name and len(eq.children) >= len(f.children):
             if len(f.children) == 2:
                 local_binding = binding.copy()
@@ -190,6 +256,35 @@ def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_i
         return False
     fc, ec = f.children, eq.children
     n = len(fc)
+
+    if fname in _ORDERED_ASSOC:
+        m = len(ec)
+        if m < n:
+            return False
+
+        def search_ordered(i, j, b):
+            if i == n:
+                return b if j == m else None
+            pat = fc[i]
+            free = (not pat.children) and pat.name in free_vars
+            remaining_pats = n - i - 1
+            max_len = (m - j - remaining_pats) if free else 1
+            for L in range(1, max_len + 1):
+                seg = ec[j] if L == 1 else TreeNode(fname, list(ec[j:j + L]))
+                sb = b.copy()
+                if _match_struct_bind_core(seg, pat, sb, const_1_vars,
+                                           ignore_set, resolved_ignore, free_vars):
+                    r = search_ordered(i + 1, j + L, sb)
+                    if r is not None:
+                        return r
+            return None
+
+        result = search_ordered(0, 0, binding)
+        if result is None:
+            return False
+        binding.update(result)
+        return True
+
     if len(ec) != n:
         return False
     if fname in _COMMUTATIVE and n > 1:
@@ -202,6 +297,7 @@ def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_i
             ]
             for i in range(n)
         ]
+
         def search(i, used, b):
             if i == n:
                 return b
@@ -215,6 +311,7 @@ def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_i
                     if r is not None:
                         return r
             return None
+
         result = search(0, frozenset(), binding)
         if result is None:
             return False
@@ -227,6 +324,8 @@ def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_i
             return False
     binding.update(sub_binding)
     return True
+
+
 def _match_struct_bind(eq, f, binding, const_1_vars=None, ignore_set=None,
                        assigned_mapping=None, free_vars=frozenset()):
     assigned_mapping = assigned_mapping or {}
@@ -242,6 +341,8 @@ def _match_struct_bind(eq, f, binding, const_1_vars=None, ignore_set=None,
             if ign in assigned_mapping:
                 resolved_ignore.add(str_form(assigned_mapping[ign]))
     return _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_ignore, free_vars)
+
+
 class _Matcher:
     def __init__(self, formula, formula_out, positive=None, negative=None, ignore_list=None, const_1=None):
         self.orig_formula = formula
@@ -270,6 +371,7 @@ class _Matcher:
             if n[:2] in _LABEL_PREFIXES and n not in _SPECIAL_PATTERN
         }
         self._same_count = [count_same_nodes(self.orig_formula, TreeNode(x)) for x in self.vl]
+
     def conditions_hold(self, mapping):
         for exprs, sign in ((self.positive, 1), (self.negative, -1)):
             for expr in exprs:
@@ -277,6 +379,7 @@ class _Matcher:
                 if v is None or sign * v < 0:
                     return False
         return True
+
     def __call__(self, equation):
         orig = simplify(equation)
         eq_w = en_w_addmul(orig)
@@ -293,9 +396,11 @@ class _Matcher:
                 vc.append(de_item)
         result = self._assign(orig, eq_w, vc)
         return orig if result is None else result
+
     def _assign(self, orig, eq_w, vc):
         variables = self.vl
         n = len(variables)
+
         def check(assigned_mapping):
             if len(assigned_mapping) != n:
                 return None
@@ -306,7 +411,7 @@ class _Matcher:
             eq_cand_w = en_w_addmul(equation)
             binding = {}
             if not _match_struct_bind(eq_w, eq_cand_w, binding, self.const_1_vars,
-                                    self.ignore_names, assigned_mapping, self.free_vars):
+                                       self.ignore_names, assigned_mapping, self.free_vars):
                 return None
             full_mapping = dict(assigned_mapping)
             full_mapping.update({k: de_w_addmul(v) for k, v in binding.items()})
@@ -324,6 +429,7 @@ class _Matcher:
             for var_name, cand in full_mapping.items():
                 result = replace(result, TreeNode(var_name), cand)
             return result
+
         if n == 0:
             return check({})
         if not vc:
@@ -338,6 +444,7 @@ class _Matcher:
             for v in variables
         ]
         target = _leaf_count(orig)
+
         def dfs(mapping, count, i, banned):
             if i == n:
                 return check(mapping)
@@ -356,26 +463,39 @@ class _Matcher:
                     return out
                 del mapping[var_name]
             return None
+
         return dfs({}, 0, 0, frozenset())
+
+
 def structure(equation, formula, formula_out, ignore_list=None, const_1=None, positive=None, negative=None):
     return _Matcher(formula, formula_out, positive, negative, ignore_list, const_1)(equation)
+
+
 def convert_lst(eq):
     if eq.name == "f_list":
         return [convert_lst(child) for child in eq.children]
     return TreeNode(eq.name, [convert_lst(child) for child in eq.children])
+
+
 def convert_string(s):
     if s == "_":
         return None
     return convert_lst(parse(s))
+
+
 def wrap_h(eq, fx):
     out = fx(simplify(eq))
     return eq if out is None else out
+
+
 def _replace_in(x, key, value):
     if x is None:
         return None
     if isinstance(x, list):
         return [_replace_in(item, key, value) for item in x]
     return replace(x, key, value)
+
+
 @lru_cache(maxsize=None)
 def _compile_rule(s):
     item = s.split(" ")
@@ -398,19 +518,29 @@ def _compile_rule(s):
                 neg = _replace_in(neg, key, value)
         matchers.append(_Matcher(simplify(x), simplify(y), pos, neg, ignore_list, const_1))
     return tuple(matchers)
+
+
 def formula_applier(eq, s):
     for matcher in _compile_rule(s):
         eq = _fixpoint(eq, matcher)
     return eq
+
+
 @lru_cache(maxsize=None)
 def _split_rules(s):
     return tuple(line for line in s.strip().split("\n") if line.strip())
+
+
 def formula_list_applier_h(eq, s):
     for item in _split_rules(s):
         eq = formula_applier(eq, item)
     return eq
+
+
 def formula_list_applier(eq, s):
     return dowhile(eq, lambda x: formula_list_applier_h(x, s))
+
+
 def extract_polynomial_coefficients(eq, var, degree):
     current_eq = copy.deepcopy(eq)
     zero_node = TreeNode("d_0")
