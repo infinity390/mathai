@@ -3,8 +3,11 @@ from .inverse import inverse
 from .ode import diffsolve as ode_solve
 from .integrate import integrate_formula
 from .simplify import simplify
+from .formula_applier import formula_applier
 
-pde_character = lambda x: load_formula("pde_character")(x)
+pde_character_s = """a*pdif(u,x)+b*pdif(u,y)+c=0 list(dif(x,y)=a/b,dif(u,x)=-c/a,dif(u,y)=-c/b,u) [[c,0],[a,1],[b,1]] [u,x,y] _ _ _"""
+pde_character = lambda x: formula_applier(x, pde_character_s)
+
 def solve_pde(eq):
     def conv(eq):
         lst = list(dict.fromkeys(vlist(eq)))
@@ -26,6 +29,7 @@ def solve_pde(eq):
             return eq
         return to_v, from_v
     eq = pde_character(eq)
+    u = eq.children.pop(-1)
     lst = []
     for child in eq.children:
         f, g = conv(child)
@@ -33,9 +37,6 @@ def solve_pde(eq):
         tmp = simplify(integrate_formula(ode_solve(tmp)))
         tmp = g(tmp)
         lst.append(inverse(tmp.children[0], f"v_101"))
-    if len(lst) == 2:
-        lst = TreeNode("f_eq", [lst[1], lst[0].fx("f")])
-        lst = simplify(lst)
-        return lst
-    return None
+    lst = TreeNode("f_eq", [lst[1], lst[0].fx("f")])
+    return u, inverse(simplify(lst).children[0], u.name)
 

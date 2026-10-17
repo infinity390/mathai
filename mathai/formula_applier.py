@@ -30,10 +30,16 @@ _DE_W_NAMES = frozenset(("f_addw", "f_mulw", "f_waddw", "f_hadamardw", "f_wmulw"
 
 
 def transform_dfs(node, fn, stable=None):
-    if stable is not None and id(node) in stable:
+    if node is None:
+        return None
+    if stable is not None and node in stable:
         return node
     children = node.children
+    if children is None:
+        return fn(node)
     new_children = [transform_dfs(c, fn, stable) for c in children]
+    if any(c is None for c in new_children):
+        return None
     unchanged = True
     for a, b in zip(new_children, children):
         if a is not b:
@@ -41,31 +47,35 @@ def transform_dfs(node, fn, stable=None):
             break
     cur = node if unchanged else TreeNode(node.name, new_children)
     out = fn(cur)
-    if out is not cur and out == cur:
+    if out is not None and out is not cur and out == cur:
         out = cur
     if stable is not None and unchanged and out is cur:
-        stable[id(cur)] = cur
+        stable[cur] = cur
     return out
 
 
 def dowhile(x, fn):
     while True:
         y = fn(x)
-        if y is x or y == x:
-            return x
+        if y is x or y == x or y is None:
+            return x if y is None else y
         x = y
 
 
 def _fixpoint(eq, fn):
+    if eq is None:
+        return None
     stable = {}
     while True:
         new = transform_dfs(eq, fn, stable)
-        if new is eq or new == eq:
-            return eq
+        if new is eq or new == eq or new is None:
+            return eq if new is None else new
         eq = new
 
 
 def en_w_addmul_h(eq):
+    if eq is None:
+        return None
     new_name = _W_NAMES.get(eq.name)
     if new_name is not None:
         return TreeNode(new_name, eq.children)
@@ -77,6 +87,8 @@ def en_w_addmul(eq):
 
 
 def de_w_addmul_h(eq):
+    if eq is None:
+        return None
     if eq.name in _DE_W_NAMES:
         return TreeNode(eq.name[:-1], eq.children)
     return eq
@@ -91,6 +103,8 @@ def get_name(item):
 
 
 def _collect_labels(node, acc):
+    if node is None:
+        return acc
     if node.name == "f_sum":
         acc.add("f_addw")
     elif node.name == "f_product":
@@ -109,6 +123,8 @@ def _collect_labels(node, acc):
 
 
 def _node_names(node, acc):
+    if node is None:
+        return acc
     acc.add(node.name)
     for c in node.children:
         _node_names(c, acc)
@@ -116,12 +132,16 @@ def _node_names(node, acc):
 
 
 def _leaf_count(node):
+    if node is None:
+        return 0
     if not node.children:
         return 1
     return sum(_leaf_count(c) for c in node.children)
 
 
 def _extract_f_sum_vars(node, v_set):
+    if node is None:
+        return
     is_agg = node.name in _EXTRACT_NAMES
     for child in node.children:
         if is_agg and child.name.startswith("v_") and not child.children:
@@ -131,6 +151,8 @@ def _extract_f_sum_vars(node, v_set):
 
 
 def _collect_candidates(eq, out):
+    if eq is None:
+        return
     if eq.name in _COMMUTATIVE:
         base = eq.name[:-1]
         ch = eq.children
@@ -151,6 +173,8 @@ def _collect_candidates(eq, out):
 
 
 def _variable_candidates(eq, out):
+    if eq is None:
+        return []
     _collect_candidates(eq, out)
     return list(dict.fromkeys(out))
 
@@ -167,13 +191,28 @@ def _as_exprs(x):
 
 
 def _subst(node, mapping):
+    if node is None:
+        return None
     if not node.children and node.name in mapping:
-        return copy.deepcopy(mapping[node.name])
-    return TreeNode(node.name, [_subst(c, mapping) for c in node.children])
+        val = mapping[node.name]
+        if val is None:
+            return None
+        return copy.deepcopy(val)
+    new_children = []
+    for c in node.children:
+        res = _subst(c, mapping)
+        if res is None:
+            return None
+        new_children.append(res)
+    return TreeNode(node.name, new_children)
 
 
 def _value_of(expr, mapping):
+    if expr is None:
+        return None
     sub = _subst(expr, mapping)
+    if sub is None:
+        return None
     v = simplify(sub)
     if v is not None:
         v = frac(sub)
@@ -181,6 +220,8 @@ def _value_of(expr, mapping):
 
 
 def count_same_nodes(node, cmp):
+    if node is None:
+        return 0
     count = 1 if node == cmp else 0
     for child in node.children:
         count += count_same_nodes(child, cmp)
@@ -188,6 +229,8 @@ def count_same_nodes(node, cmp):
 
 
 def count_v_nodes(node):
+    if node is None:
+        return 0
     if node.name in _AGG_NAMES:
         return sum(count_v_nodes(c) for c in node.children if not c.name.startswith("v_"))
     count = 1 if node.name.startswith("v_") else 0
@@ -197,10 +240,12 @@ def count_v_nodes(node):
 
 
 def _is_plain_variable(node):
-    return node.name.startswith("v_") and not node.children
+    return node is not None and node.name.startswith("v_") and not node.children
 
 
 def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_ignore, free_vars):
+    if eq is None or f is None:
+        return False
     fname = f.name
     if fname == "f_poly":
         eq_plain = de_w_addmul(eq)
@@ -344,11 +389,11 @@ def _match_struct_bind(eq, f, binding, const_1_vars=None, ignore_set=None,
 
 
 class _Matcher:
-    def __init__(self, formula, formula_out, positive=None, negative=None, ignore_list=None, const_1=None):
+    def __init__(self, formula, formula_out, positive=None, negative=None, ignore_list=None, const_1=None, forbidden_list=None):
         self.orig_formula = formula
         self.formula_out = formula_out
         self.formula_w = en_w_addmul(formula)
-        self.root_name = self.formula_w.name
+        self.root_name = self.formula_w.name if self.formula_w else ""
         f_sum_vars = set()
         _extract_f_sum_vars(self.formula_w, f_sum_vars)
         self.free_vars = frozenset(f_sum_vars)
@@ -357,13 +402,16 @@ class _Matcher:
         self.ignore_list_exprs = _as_exprs(ignore_list)
         self.ignore_set = {get_name(item) for item in self.ignore_list_exprs}
         self.ignore_names = {item.name for item in self.ignore_list_exprs}
-        names = set(vlist(self.formula_w)) - f_sum_vars
+        self.forbidden_list_exprs = _as_exprs(forbidden_list)
+        
+        names = set(vlist(self.formula_w)) - f_sum_vars if self.formula_w else set()
         self.vl = sorted(names, key=lambda n: (0 if n in self.ignore_set else 1, n))
         self.must_be_var = {n: (n in self.ignore_set and n not in f_sum_vars) for n in self.vl}
         self.const_1_vars = {get_name(item) for item in _as_exprs(const_1)}
         self.must_be_const = {n: (n in self.const_1_vars) for n in self.vl}
         self.root_is_free = (
-            (self.root_name.startswith("v_") and not self.formula_w.children)
+            not self.formula_w
+            or (self.root_name.startswith("v_") and not self.formula_w.children)
             or self.root_name in _SPECIAL_PATTERN
         )
         self.required = {
@@ -371,6 +419,22 @@ class _Matcher:
             if n[:2] in _LABEL_PREFIXES and n not in _SPECIAL_PATTERN
         }
         self._same_count = [count_same_nodes(self.orig_formula, TreeNode(x)) for x in self.vl]
+
+    def _is_forbidden(self, mapping):
+        if not self.forbidden_list_exprs:
+            return False
+        for forb_pair in self.forbidden_list_exprs:
+            if isinstance(forb_pair, list) and len(forb_pair) == 2:
+                expr_part, forb_val = forb_pair[0], forb_pair[1]
+                subbed_expr = _subst(expr_part, mapping)
+                subbed_val = _subst(forb_val, mapping)
+                if subbed_expr is None or subbed_val is None:
+                    return True
+                simp_expr = simplify(subbed_expr)
+                simp_val = simplify(subbed_val)
+                if simp_expr is None or simp_val is None or simp_expr == simp_val:
+                    return True
+        return False
 
     def conditions_hold(self, mapping):
         for exprs, sign in ((self.positive, 1), (self.negative, -1)):
@@ -381,8 +445,14 @@ class _Matcher:
         return True
 
     def __call__(self, equation):
+        if equation is None:
+            return None
         orig = simplify(equation)
+        if orig is None:
+            return equation
         eq_w = en_w_addmul(orig)
+        if eq_w is None:
+            return orig
         if not self.root_is_free and eq_w.name != self.root_name:
             return orig
         if self.required and not self.required <= _node_names(eq_w, set()):
@@ -390,10 +460,11 @@ class _Matcher:
         seen, vc = set(), []
         for item in [eq_w] + _variable_candidates(eq_w, []):
             de_item = de_w_addmul(item)
-            s = str_form(de_item)
-            if s not in seen:
-                seen.add(s)
-                vc.append(de_item)
+            if de_item is not None:
+                s = str_form(de_item)
+                if s not in seen:
+                    seen.add(s)
+                    vc.append(de_item)
         result = self._assign(orig, eq_w, vc)
         return orig if result is None else result
 
@@ -403,6 +474,8 @@ class _Matcher:
 
         def check(assigned_mapping):
             if len(assigned_mapping) != n:
+                return None
+            if self._is_forbidden(assigned_mapping):
                 return None
             equation = copy.deepcopy(self.orig_formula)
             for var_name, cand in assigned_mapping.items():
@@ -415,6 +488,10 @@ class _Matcher:
                 return None
             full_mapping = dict(assigned_mapping)
             full_mapping.update({k: de_w_addmul(v) for k, v in binding.items()})
+            
+            if self._is_forbidden(full_mapping):
+                return None
+
             banned = set()
             for ign in self.ignore_names:
                 if ign in full_mapping:
@@ -428,7 +505,7 @@ class _Matcher:
             result = copy.deepcopy(self.formula_out)
             for var_name, cand in full_mapping.items():
                 result = replace(result, TreeNode(var_name), cand)
-            return result
+            return simplify(result)
 
         if n == 0:
             return check({})
@@ -457,6 +534,9 @@ class _Matcher:
                 if must_const and banned and not banned.isdisjoint(cand_vars[idx]):
                     continue
                 mapping[var_name] = vc[idx]
+                if self._is_forbidden(mapping):
+                    del mapping[var_name]
+                    continue
                 nb = (banned | cand_vars[idx]) if must_var else banned
                 out = dfs(mapping, count + leaves[idx] * sc, i + 1, nb)
                 if out is not None:
@@ -467,11 +547,13 @@ class _Matcher:
         return dfs({}, 0, 0, frozenset())
 
 
-def structure(equation, formula, formula_out, ignore_list=None, const_1=None, positive=None, negative=None):
-    return _Matcher(formula, formula_out, positive, negative, ignore_list, const_1)(equation)
+def structure(equation, formula, formula_out, ignore_list=None, const_1=None, positive=None, negative=None, forbidden_list=None):
+    return _Matcher(formula, formula_out, positive, negative, ignore_list, const_1, forbidden_list)(equation)
 
 
 def convert_lst(eq):
+    if eq is None:
+        return None
     if eq.name == "f_list":
         return [convert_lst(child) for child in eq.children]
     return TreeNode(eq.name, [convert_lst(child) for child in eq.children])
@@ -480,10 +562,15 @@ def convert_lst(eq):
 def convert_string(s):
     if s == "_":
         return None
-    return convert_lst(parse(s))
+    parsed = parse(s)
+    if parsed is None:
+        return None
+    return convert_lst(parsed)
 
 
 def wrap_h(eq, fx):
+    if eq is None:
+        return None
     out = fx(simplify(eq))
     return eq if out is None else out
 
@@ -501,26 +588,54 @@ def _compile_rule(s):
     item = s.split(" ")
     a, b = (simplify(parse(x)) for x in item[:2])
     subs = {}
-    for key, value in convert_string(item[2]):
-        subs.setdefault(key, [None]).append(value)
+    parsed_subs = convert_string(item[2])
+    if parsed_subs:
+        for key, value in parsed_subs:
+            subs.setdefault(key, [None]).append(value)
+    
     lst = [convert_string(x) for x in item[3:]]
-    lst += [None] * (4 - len(lst))
-    ignore_list, const_1, positive, negative = lst[:4]
+    lst += [None] * (5 - len(lst))
+    ignore_list, const_1, positive, negative, forbidden_list = lst[:5]
+    
     keys = tuple(subs)
     matchers = []
     for combination in itertools.product(*subs.values()):
-        x, y, pos, neg = a, b, positive, negative
+        x, y, pos, neg, forb = a, b, positive, negative, forbidden_list
+        valid_comb = True
         for key, value in zip(keys, combination):
             if value is not None:
                 x = replace(x, key, value)
                 y = replace(y, key, value)
                 pos = _replace_in(pos, key, value)
                 neg = _replace_in(neg, key, value)
-        matchers.append(_Matcher(simplify(x), simplify(y), pos, neg, ignore_list, const_1))
+                forb = _replace_in(forb, key, value)
+        
+        if forbidden_list is not None:
+            comb_map = {k: v for k, v in zip(keys, combination) if v is not None}
+            for forb_pair in _as_exprs(forbidden_list):
+                if isinstance(forb_pair, list) and len(forb_pair) == 2:
+                    sub_expr = _subst(forb_pair[0], comb_map)
+                    sub_val = _subst(forb_pair[1], comb_map)
+                    if sub_expr is None or sub_val is None:
+                        valid_comb = False
+                        break
+                    simp_expr = simplify(sub_expr)
+                    simp_val = simplify(sub_val)
+                    if simp_expr is None or simp_val is None or simp_expr == simp_val:
+                        valid_comb = False
+                        break
+        
+        if valid_comb:
+            simp_x = simplify(x)
+            simp_y = simplify(y)
+            if simp_x is not None and simp_y is not None:
+                matchers.append(_Matcher(simp_x, simp_y, pos, neg, ignore_list, const_1, forb))
     return tuple(matchers)
 
 
 def formula_applier(eq, s):
+    if eq is None:
+        return None
     for matcher in _compile_rule(s):
         eq = _fixpoint(eq, matcher)
     return eq
@@ -532,16 +647,22 @@ def _split_rules(s):
 
 
 def formula_list_applier_h(eq, s):
+    if eq is None:
+        return None
     for item in _split_rules(s):
         eq = formula_applier(eq, item)
     return eq
 
 
 def formula_list_applier(eq, s):
+    if eq is None:
+        return None
     return dowhile(eq, lambda x: formula_list_applier_h(x, s))
 
 
 def extract_polynomial_coefficients(eq, var, degree):
+    if eq is None:
+        return None
     current_eq = copy.deepcopy(eq)
     zero_node = TreeNode("d_0")
     var_node = TreeNode(var)

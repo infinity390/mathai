@@ -375,15 +375,15 @@ integrate(product(a,b),x) a*integrate(b,x) [] x a _ _
 integrate_formula = lambda x: formula_list_applier(x, integrate_formula_s)
 
 integrate_trig_s = """integrate(cos(poly(x,a,b))/sin(poly(x,a,b)),x) log(abs(sin(a*x+b)))/a [] x [a,b] _ _
-integrate(sin(poly(x,a,b))/cos(poly(x,a,b)),x) -(log(abs(cos(poly(x,a,b))))/a) [] x [a,b] _ _
-integrate((sin(x)/cos(x))^a,x) tan(x)^(a-1)/(a-1)-integrate((sin(x)/cos(x))^(a-2),x) [] x a a _
-integrate((cos(x)/sin(x))^a,x) -(cot(x)^(a-1)/(a-1))-integrate((cos(x)/sin(x))^(a-2),x) [] x a a _
-integrate(cos(x)^a/sin(x),x) cos(x)^(a-1)/(a-1)+integrate(cos(x)^(a-2)/sin(x),x) [] x a a _
-integrate(sin(x)^a/cos(x),x) -(sin(x)^(a-1)/(a-1))+integrate(sin(x)^(a-2)/cos(x),x) [] x a a _
-integrate(sin(x)^a*cos(x)^b,x) -(sin(x)^(a+1)*cos(x)^(b+1)/(b+1))+(a+b+2)/(b+1)*integrate(sin(x)^a*cos(x)^(b+2),x) [] x [a,b] _ b
-integrate(sin(x)^a*cos(x)^b,x) sin(x)^(a+1)*cos(x)^(b+1)/(a+1)+(a+b+2)/(a+1)*integrate(sin(x)^(a+2)*cos(x)^b,x) [] x [a,b] _ a
-integrate(sin(x)^a,x) sin(x)^(a+1)*cos(x)/(a+1)+(a+2)/(a+1)*integrate(sin(x)^(a+2),x) [] x a _ a
-integrate(cos(x)^a,x) -(sin(x)*cos(x)^(a+1)/(a+1))+(a+2)/(a+1)*integrate(cos(x)^(a+2),x) [] x a _ a"""
+integrate(sin(poly(x,a,b))/cos(poly(x,a,b)),x) -(log(abs(cos(a*x+b)))/a) [] x [a,b] _ _
+integrate((sin(x)/cos(x))^a,x) tan(x)^(a-1)/(a-1)-integrate((sin(x)/cos(x))^(a-2),x) [] x a a _ [[a,1]]
+integrate((cos(x)/sin(x))^a,x) -(cot(x)^(a-1)/(a-1))-integrate((cos(x)/sin(x))^(a-2),x) [] x a a _ [[a,1]]
+integrate(cos(x)^a/sin(x),x) cos(x)^(a-1)/(a-1)+integrate(cos(x)^(a-2)/sin(x),x) [] x a a _ [[a,1]]
+integrate(sin(x)^a/cos(x),x) -(sin(x)^(a-1)/(a-1))+integrate(sin(x)^(a-2)/cos(x),x) [] x a a _ [[a,1]]
+integrate(sin(x)^a*cos(x)^b,x) -(sin(x)^(a+1)*cos(x)^(b+1)/(b+1))+(a+b+2)/(b+1)*integrate(sin(x)^a*cos(x)^(b+2),x) [] x [a,b] _ b [[b,-1]]
+integrate(sin(x)^a*cos(x)^b,x) sin(x)^(a+1)*cos(x)^(b+1)/(a+1)+(a+b+2)/(a+1)*integrate(sin(x)^(a+2)*cos(x)^b,x) [] x [a,b] _ a [[a,-1]]
+integrate(sin(x)^a,x) sin(x)^(a+1)*cos(x)/(a+1)+(a+2)/(a+1)*integrate(sin(x)^(a+2),x) [] x a _ a [[a,-1]]
+integrate(cos(x)^a,x) -(sin(x)*cos(x)^(a+1)/(a+1))+(a+2)/(a+1)*integrate(cos(x)^(a+2),x) [] x a _ a [[a,-1]]"""
 integrate_trig_formula = lambda x: formula_list_applier(x, integrate_trig_s)
 
 def shorten(eq):
