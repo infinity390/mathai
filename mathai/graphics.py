@@ -46,5 +46,56 @@ def solve_graphics(Ax, Ay, Az, Bx, By, Bz, BAx, BAy, BAz, phi, theta, fvl, tvl, 
     return final_solution
 def solve_graphics_string(s):
     s_parsed = [None if item == "None" else parse(item) for item in s.split()]
-    for key, item in solve_graphics(*s_parsed).items():
+    solution = solve_graphics(*s_parsed)
+    for key, item in solution.items():
         print(f"{key} : {item}")
+    return solution
+def draw_graphics_from_solution(solution):
+    import matplotlib.pyplot as plt
+    import numpy as np
+    def get_val(key):
+        if key in solution:
+            val = solution[key]
+            try:
+                return float(compute(val))
+            except Exception:
+                try:
+                    return float(str(val))
+                except Exception:
+                    return 0.0
+        return 0.0
+    Ax = get_val('Ax')
+    Ay = get_val('Ay')
+    Az = get_val('Az')
+    Bx = get_val('Bx')
+    By = get_val('By')
+    Bz = get_val('Bz')
+    fa_x, fa_y = Az, Ay
+    fb_x, fb_y = Bz, By
+    ta_x, ta_y = Az, -Ax
+    tb_x, tb_y = Bz, -Bx
+    fig, ax = plt.subplots(figsize=(9, 7))
+    x_min = min(fa_x, fb_x, ta_x, tb_x) - 25
+    x_max = max(fa_x, fb_x, ta_x, tb_x) + 25
+    ax.axhline(0, color='black', linewidth=1.5, label='Reference Axis')
+    ax.plot([fa_x, fb_x], [fa_y, fb_y], 'r-', linewidth=2, label="Front View (a' b')")
+    ax.plot(fa_x, fa_y, 'ro', markersize=5)
+    ax.plot(fb_x, fb_y, 'ro', markersize=5)
+    ax.text(fa_x - 3, fa_y + 3, "a'", fontsize=11, color='red', fontweight='bold')
+    ax.text(fb_x + 3, fb_y + 3, "b'", fontsize=11, color='red', fontweight='bold')
+    ax.plot([ta_x, tb_x], [ta_y, tb_y], 'b-', linewidth=2, label="Top View (a b)")
+    ax.plot(ta_x, ta_y, 'bo', markersize=5)
+    ax.plot(tb_x, tb_y, 'bo', markersize=5)
+    ax.text(ta_x - 3, ta_y - 8, "a", fontsize=11, color='blue', fontweight='bold')
+    ax.text(tb_x + 3, tb_y - 8, "b", fontsize=11, color='blue', fontweight='bold')
+    ax.plot([fa_x, ta_x], [fa_y, ta_y], 'k--', alpha=0.5)
+    ax.plot([fb_x, tb_x], [fb_y, tb_y], 'k--', alpha=0.5)
+    ax.set_aspect('equal', adjustable='datalim')
+    ax.grid(True, linestyle=':', alpha=0.6)
+    ax.set_xlabel('Coordinate Axis (Az / Bz)', fontsize=10)
+    ax.set_ylabel('Height / Depth', fontsize=10)
+    ax.set_title('Engineering Drawing: Projections of a Line', fontsize=13, fontweight='bold', pad=15)
+    ax.legend(loc='upper right', framealpha=0.9)
+    plt.tight_layout()
+    plt.savefig('line_projections.png', dpi=300)
+    plt.show()
