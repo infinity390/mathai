@@ -1,6 +1,6 @@
 import math
 from .inverse import inverse, inverse2
-from .integrate import integrate_full
+from .integrate import integrate_full, def_integrate_formula
 from .ode import diffsolve as ode_solve
 from .parser import parse
 from .simplify import simplify, log0
@@ -328,7 +328,10 @@ def god(string):
             eq = simplify(ode_solve(simplify(eq)))
             log.append(eq)
         if "f_integrate" in str_form(eq):
+            eq = def_integrate_formula(eq)
             eq = integrate_full(eq)
+            eq = limit5(eq)
+            eq = limit1(eq)
         eq = simplify(expand(simplify(eq)))
         print(f"=> {eq}")
         print()

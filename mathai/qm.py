@@ -12,10 +12,9 @@ from .inverse import inverse
 
 from .integrate import integrate_subs_main as integrate_subs
 from .integrate import byparts as integrate_byparts
-from .integrate import sqint as integrate_fraction
-from .integrate import conv_int
+from .integrate import integrate_fraction
 from .integrate import solve_integrate as integrate_clean
-from .integrate import integrate_formula, integrate_full, integrate_definite
+from .integrate import integrate_formula, integrate_full
 from .integrate import normalize as integration_basic
 
 from .diff import diff

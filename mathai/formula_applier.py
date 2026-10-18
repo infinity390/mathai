@@ -253,8 +253,10 @@ def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_i
         for item in vlist(eq):
             out = extract_polynomial_coefficients(eq_plain, item, degree)
             if out is not None:
-                out = out[::-1][1:]
-                if out[0] != 0:
+                out = out[::-1]
+                while out[0] == 0:
+                    out.pop(0)
+                if len(out) == degree:                    
                     local_binding = binding.copy()
                     for i in range(1, len(f.children)):
                         local_binding[f.children[i].name] = out[i - 1]

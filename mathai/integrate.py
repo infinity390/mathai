@@ -217,106 +217,7 @@ def integrate_subs_main_helper(equation):
     return equation
 def integrate_subs_main(equation):
     return transform_dfs(equation, integrate_subs_main_helper)
-def _sqint(equation):
-    def sgn(eq):
-        if compute(eq) <0:
-            return tree_form("d_-1"), tree_form("d_-1")*eq
-        return tree_form("d_1"), eq
-    eq2 = equation
-    if eq2.name == "f_integrate":
-        equation = eq2.children[0]
-        var = eq2.children[1]
-        one = tree_form("d_1")
-        two = tree_form("d_2")
-        four = tree_form("d_4")
-        three = tree_form("d_3")
-        root = tree_form("d_2")**-1
-        zero = tree_form("d_0")
-        n, d = num_dem(equation)
-        n, d = simplify(n), simplify(d)
-        term = [simplify(x) for x in factor_generation(d)]
-        const = product([item for item in term if "v_" not in str_form(item)])
-        term = [item for item in term if "v_" in str_form(item)]
-        mode = False
-        if all(item.name == "f_pow" and simplify(item.children[1]-root) == zero for item in term):
-            d = simplify(expand(const**two*product([item.children[0] for item in term])))
-        else:
-            mode = True
-            if any(item.name == "f_pow" and simplify(item.children[1]-root) == zero for item in term):
-                return None
-        if vlist(equation) == []:
-            return None
-        v = vlist(equation)[0]
-        x = tree_form(v)
-        np = poly(n, v)
-        dp = poly(d, v)
-        if np is None or dp is None:
-            return None
-        if len(np) == 1 and len(dp) == 3:
-            k, a, b, c = np+dp
-            if a == zero:
-                return None
-            s1, s2 = sgn(a)
-            const = (four*a*c - b**two)/(four*a)
-            t1, t2 = sgn(const)
-            la = s2**root
-            lb = b*s2**root/(two*a)
-            if mode:
-                if s1 == one:
-                    if t1 == one:
-                        if simplify(t2**root) == tree_form("d_0"):
-                            return None
-                        return k*((la*x+lb)/t2**root).fx("arctan")/(la * t2**root)
-                    else:
-                        return None
-                else:
-                    if t1 == one:
-                        return None
-                    else:
-                        _, t2 = sgn(-const)
-                        return -k*((la*x+lb)/t2**root).fx("arctan")/(la * t2**root)
-            if s1 == one:
-                if t1 == one:
-                    return simplify(k*(la*x + lb + ((la*x + lb)**two + t2)**root).fx("abs").fx("log")/la)
-                else:
-                    return simplify(k*(la*x + lb + ((la*x + lb)**two - t2)**root).fx("abs").fx("log")/la)
-            else:
-                if t1 == one:
-                    return k*((la*x + lb)/t2**root).fx("arcsin")/la
-                else:
-                    return None
-        if len(np) == 2 and len(dp) == 3:
-            p, q, a, b, c = np+dp
-            if a == zero:
-                return None
-            A = p/(two*a)
-            B = q - A*b
-            t = a*x**two + b*x + c
-            if not mode:
-                tmp = _sqint(TreeNode("f_integrate", [simplify(one/t**root), var]))
-                if tmp is None:
-                    tmp = TreeNode("f_integrate", [simplify(one/t**root), var])
-                return A*two*t**root + tmp*B
-            else:
-                tmp = _sqint(TreeNode("f_integrate", [simplify(one/t), var]))
-                if tmp is None:
-                    tmp = TreeNode("f_integrate", [simplify(one/t), var])
-                return A*t.fx("abs").fx("log") + tmp*B
-        equation = eq2
-    coll = TreeNode(equation.name, [])
-    for child in equation.children:
-        out = _sqint(child)
-        if out is None:
-            coll.children.append(child)
-        else:
-            coll.children.append(out)
-    return coll
-def sqint(eq):
-    eq = _sqint(eq)
-    out = simplify(eq)
-    if out is None:
-        return eq
-    return out
+
 def byparts(eq):
     if eq.name == "f_ref":
         return eq
@@ -353,6 +254,21 @@ def byparts(eq):
         eq = eq2
     return TreeNode(eq.name, [byparts(child) for child in eq.children])
 
+integrate_fraction_s = """integrate(1/sqrt(poly(x,a,b,c)),x) 1/sqrt(a)*log(abs(sqrt(a)*x+b/(2*sqrt(a))+sqrt((sqrt(a)*x+b/(2*sqrt(a)))^2+(4*a*c-b^2)/(4*a)))) [] x [a,b,c] [a,4*a*c-b^2] _ [[a,0],[b^2-4*a*c,0]]
+integrate(1/sqrt(poly(x,a,b,c)),x) 1/sqrt(a)*log(abs(sqrt(a)*x+b/(2*sqrt(a))+sqrt((sqrt(a)*x+b/(2*sqrt(a)))^2-(b^2-4*a*c)/(4*a)))) [] x [a,b,c] [a,b^2-4*a*c] _ [[a,0],[4*a*c-b^2,0]]
+integrate(1/sqrt(poly(x,a,b,c)),x) 1/sqrt(-a)*arcsin((sqrt(-a)*x-b/(2*sqrt(-a)))/sqrt((4*a*c-b^2)/(4*a))) [] x [a,b,c] [4*a*c-b^2] a [[a,0],[b^2-4*a*c,0]]
+integrate(1/poly(x,a,b,c),x) 1/(sqrt(a)*sqrt((4*a*c-b^2)/(4*a)))*arctan((sqrt(a)*x+b/(2*sqrt(a)))/sqrt((4*a*c-b^2)/(4*a))) [] x [a,b,c] [a,4*a*c-b^2] _ [[a,0],[b^2-4*a*c,0]]
+integrate(1/poly(x,a,b,c),x) -1/(sqrt(-a)*sqrt((b^2-4*a*c)/(-4*a)))*arctan((sqrt(-a)*x-b/(2*sqrt(-a)))/sqrt((b^2-4*a*c)/(-4*a))) [] x [a,b,c] _ [a,b^2-4*a*c] [[a,0],[4*a*c-b^2,0]]
+integrate(poly(x,p,q)/sqrt(poly(x,a,b,c)),x) (p/a)*sqrt(a*x^2+b*x+c)+(q-p*b/(2*a))*integrate(1/sqrt(a*x^2+b*x+c),x) [] x [p,q,a,b,c] _ _ _ [[a,0]]
+integrate(poly(x,p,q)/poly(x,a,b,c),x) (p/(2*a))*log(abs(a*x^2+b*x+c))+(q-p*b/(2*a))*integrate(1/(a*x^2+b*x+c),x) [] x [p,q,a,b,c] _ _ _ [[a,0]]"""
+integrate_fraction = lambda x: formula_list_applier(x, integrate_fraction_s)
+
+def_integrate_formula_s = """integrate(abs(poly(x,a,b)),x,m,n) ((a*n+b)*abs(a*n+b)-(a*m+b)*abs(a*m+b))/(2*a) [] x [a,b] _ _
+integrate(abs(sin(x)),x) 2*floor(x/pi)+1-cos(x-pi*floor(x/pi)) [] x _ _ _
+integrate(u,x,a,inf) limitpinf(integrate(u,x),x)-limit(integrate(u,x),x,a) [] x a _ _ _
+integrate(u,x,a,b) limit(integrate(u,x),x,b)-limit(integrate(u,x),x,a) [] x [a,b] _ _ _"""
+def_integrate_formula = lambda x: formula_list_applier(x, def_integrate_formula_s)
+
 integrate_formula_s = """
 integrate(x^2*e^(poly(x,a,b)),x) ((x^2/a)-(2*x/(a^2))+(2/(a^3)))*e^(a*x+b) [] x [a,b] _ _
 integrate(x*e^(poly(x,a,b)),x) ((x/a)-(1/(a^2)))*e^(a*x+b) [] x [a,b] _ _
@@ -386,166 +302,6 @@ integrate(sin(x)^a,x) sin(x)^(a+1)*cos(x)/(a+1)+(a+2)/(a+1)*integrate(sin(x)^(a+
 integrate(cos(x)^a,x) -(sin(x)*cos(x)^(a+1)/(a+1))+(a+2)/(a+1)*integrate(cos(x)^(a+2),x) [] x a _ a [[a,-1]]"""
 integrate_trig_formula = lambda x: formula_list_applier(x, integrate_trig_s)
 
-def shorten(eq):
-    if eq.name.startswith("d_"):
-        return tree_form("d_0")
-    return TreeNode(eq.name, [shorten(child) for child in eq.children])
-
-def integrate_qm_formula(equation):
-    out = transform_dfs(equation, integrate_formula_h, [True])
-    return out
-def has_nested_trig(node, seen_trig=False):
-    if not isinstance(node, TreeNode):
-        return False
-    trig = {
-        "f_sin", "f_cos", "f_tan",
-        "f_sec", "f_cosec", "f_cot"
-    }
-    is_trig = node.name in trig
-    if is_trig and seen_trig:
-        return True
-    seen_trig = seen_trig or is_trig
-    children = getattr(node, "args", None) or getattr(node, "children", None) or []
-    for c in children:
-        if has_nested_trig(c, seen_trig):
-            return True
-    return False
-def has_nested_trig(node, seen_trig=False):
-    if not isinstance(node, TreeNode):
-        return False
-    trig = {
-        "f_sin", "f_cos", "f_tan",
-        "f_sec", "f_cosec", "f_cot"
-    }
-    is_trig = node.name in trig
-    if is_trig and seen_trig:
-        return True
-    seen_trig = seen_trig or is_trig
-    children = getattr(node, "args", None) or getattr(node, "children", None) or []
-    for c in children:
-        if has_nested_trig(c, seen_trig):
-            return True
-    return False
-def sin_range(eq, n, wrt):
-    a = tree_form(f"d_{n}")*parse("pi/2")
-    b = tree_form(f"d_{n+1}")*parse("pi/2")
-    return eq2range(wavycurvy(simplify(TreeNode("f_lt", [a,eq]) & TreeNode("f_lt", [eq,b])), wrt)), tree_form("d_1") if (n // 2)%2 ==0 else tree_form("d_-1")
-def def_int_h(eq, start, end, wrt, root):
-    if eq.name == "f_abs" and eq.children[0].name == "f_sin":
-        lst = []
-        f = Range()
-        f.r = [False, start, True, end, False]
-        a = math.floor(compute(start)/compute(parse("pi/2")))
-        b = math.floor(compute(end)/compute(parse("pi/2")))+1
-        for i in range(a,b+1):
-            inq, sgn = sin_range(eq.children[0].children[0], i, wrt)
-            inq = eq2range(wavycurvy(range2eq2(f&inq))).fix()
-            if len(inq.r) != 5:
-                continue
-            eqn = TreeNode("f_integrate", [eq.children[0]*sgn, wrt])
-            eqn2 = TreeNode("f_subs", [eqn, wrt, inq.r[3]]) - TreeNode("f_subs", [eqn, wrt, inq.r[1]])
-            lst.append(eqn2)
-        return simplify(summation(lst))
-    elif eq.name == "f_max" and len(eq.children) == 2:
-        if len(vlist(eq)) == 2:
-            if eq.children[0].name.startswith("v_") and eq.children[1].name.startswith("v_"):
-                if start != tree_form("d_0") or end != tree_form("s_inf"):
-                    return None
-                var = tree_form(list(set(vlist(eq))-set([wrt.name]))[0])
-                a = replace(copy.deepcopy(root), eq, var)
-                b = replace(copy.deepcopy(root), eq, wrt)
-                return TreeNode("f_integrate", [a.children[0],wrt,start,var])+TreeNode("f_integrate", [b.children[0],wrt,var, end])
-    elif eq.name == "f_abs":
-        if len(vlist(eq)) == 1:
-            lst = []
-            f = TreeNode("f_gt", [eq.children[0], tree_form("d_0")])
-            f = simplify(f)
-            g = TreeNode("f_lt", [eq.children[0], tree_form("d_0")])
-            g = simplify(g)
-            h = Range()
-            h.r = [False, start, True, end, False]
-            f = eq2range(wavycurvy(f, wrt))
-            f = (f & h).fix()
-            g = eq2range(wavycurvy(g, wrt))
-            g = (g & h).fix()
-            if f.r[0] or f.r[-1] or g.r[0] or g.r[-1]:
-                return None
-            for i in range(2):
-                for j in range(len([f,g][i].r)):
-                    if [f,g][i].r[j] == True:
-                        eqn = TreeNode("f_integrate", [eq.children[0]*[tree_form("d_1"), tree_form("d_-1")][i], wrt])
-                        eqn2 = TreeNode("f_subs", [eqn, wrt, [f,g][i].r[j+1]]) - TreeNode("f_subs", [eqn, wrt, [f,g][i].r[j-1]])
-                        lst.append(eqn2)
-            return simplify(summation(lst))
-        elif len(vlist(eq)) > 1:
-            out = inverse(copy.deepcopy(eq.children[0]), wrt.name, True)
-            if out is None:
-                return None
-            eqn, sign = out
-            test = copy.deepcopy(eqn)
-            pos = True
-            neg = True
-            for item in vlist(eq.children[0]):
-                out = diff(eq.children[0],item)
-                if frac(out) is None:
-                    pos = False
-                    neg = False
-                elif frac(out) > 0:
-                    neg = False
-                elif frac(out) < 0:
-                    pos = False
-                test = replace(test, tree_form(item), tree_form("d_0"))
-            a = None
-            if simplify(test-start) != 0:
-                return None
-            if pos or neg:
-                if sign:
-                    return TreeNode("f_integrate", [replace(copy.deepcopy(root), eq, eq.children[0]).children[0],wrt,start,end])
-                else:
-                    return TreeNode("f_integrate", [replace(copy.deepcopy(root), eq, -eq.children[0]).children[0],wrt,start,end])
-            a = replace(copy.deepcopy(root), eq, -eq.children[0])
-            b = replace(copy.deepcopy(root), eq, eq.children[0])
-            if not sign:
-                a, b = b, a
-            out = TreeNode("f_integrate", [a.children[0],wrt,start, eqn])+TreeNode("f_integrate", [b.children[0],wrt,eqn, end])
-            return out
-    return None
-def conv_int2(eq, wrt, start, end):
-    lst = []
-    for item in [start, end]:
-        if item == tree_form("s_inf"):
-            lst.append(TreeNode("f_limitpinf", [eq, wrt]))
-        else:
-            lst.append(TreeNode("f_limit", [replace(copy.deepcopy(eq), wrt, wrt+item), wrt]))
-    return lst[1]-lst[0]
-def conv_int_h(eq):
-    if (eq.name == "f_integrate" and len(eq.children) == 4):
-        lst = []
-        for item in [eq.children[2], eq.children[3]]:
-            if item == tree_form("s_inf"):
-                lst.append(TreeNode("f_limitpinf", [TreeNode("f_integrate", copy.deepcopy(eq.children[:2])), eq.children[1]]))
-            else:
-                lst.append(TreeNode("f_limit", [TreeNode("f_integrate", [replace(copy.deepcopy(eq.children[0]),eq.children[1],eq.children[1]+item),\
-                                                                         eq.children[1]]), eq.children[1]]))
-        return lst[1]-lst[0]
-    return eq
-def conv_int(eq):
-    return transform_dfs(eq, conv_int_h, [])
-def def_int(eq, start, end, wrt, root):
-    out = def_int_h(eq, start, end, wrt, root)
-    if out is not None:
-        return out
-    for child in eq.children:
-        out = def_int(child, start, end, wrt, root)
-        if out is not None:
-            return out
-    return None
-def integrate_definite(eq):
-    if eq.name == "f_integrate" and len(eq.children) == 4:
-        out = def_int(eq.children[0], eq.children[2], eq.children[3], eq.children[1], eq)
-        if out is not None:
-            return out
-    return TreeNode(eq.name, [integrate_definite(child) for child in eq.children])
 def normalize(x, f=True):
     x = simplify(x)
     x = factor2(x)
@@ -553,24 +309,13 @@ def normalize(x, f=True):
         x = dowhile(x, lambda y: fraction(simplify(integrate_formula(y))))
     else:
         x = dowhile(x, lambda y: simplify(integrate_formula(y)))
-    out = sqint(x)
+    out = integrate_fraction(x)
     if out is not None:
         x = out
     return x
-def normalize_qm(x, f=True):
-    x = simplify(x)
-    x = integrate_summation(x)
-    x = factor2(x)
-    if f:
-        x = dowhile(x, lambda y: fraction(simplify(integrate_qm_formula(rm_const(integrate_summation(y))))))
-    else:
-        x = dowhile(x, lambda y: simplify(integrate_qm_formula(rm_const(integrate_summation(y)))))
-    out = sqint(x)
-    if out is not None:
-        x = out
-    return x
+
 def integrate_full(root):
-    root = integrate_definite(trig0(root))
+    root = trig0(root)
     def is_solved(x):
         x = solve_integrate(x)
         return "f_integrate" not in str_form(x)
