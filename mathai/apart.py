@@ -51,7 +51,10 @@ def _apart(eq, v=None):
             if n > 3:
                 return eq
             n = tree_form("d_"+str(n))
-            l = len(poly(item, v))
+            l = poly(item, v)
+            if l is None:
+                return eq
+            l = len(l)
             if l == 3:
                 a = alloclst.pop(0)
                 b = alloclst.pop(0)

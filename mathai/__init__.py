@@ -7,6 +7,8 @@ from .qm import hydrogen_gse, helium_gse, power_rule
 
 from .graphics import draw_graphics_from_solution, solve_graphics, solve_graphics_string
 
+from .benchmark import benchmark_ncert
+
 from .lambda_calculus import lambda_expand, lambda_compress, lambda_reduce
 
 from .electronic import Edge, CircuitGraph, find_resistance

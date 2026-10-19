@@ -85,10 +85,10 @@ def subs_heuristic(eq, var):
     else:
         p = [poly_term]+output
     last = list(set(last))
-    if len(p)>3:
-        p = p[:3]
-    elif len(p)<3:
-        p = (p+last)[:3]
+    if len(p)>2:
+        p = p[:2]
+    elif len(p)<2:
+        p = (p+last)[:2]
     return p
 try_index = []
 try_lst = []
@@ -317,13 +317,13 @@ def normalize(x, f=True):
     if f:
         x = dowhile(x, lambda y: fraction(simplify(integrate_formula(y))))
     else:
-        x = dowhile(x, lambda y: simplify(integrate_formula(y)))
+        x = integrate_formula(x)
     out = integrate_fraction(x)
     if out is not None:
         x = out
     return x
 
-def integrate_full(root):
+def integrate_full(root, debug=True):
     root = trig0(root)
     def is_solved(x):
         x = solve_integrate(x)
@@ -337,11 +337,13 @@ def integrate_full(root):
     eq = root
     for item in [[lambda x: x, simplify, expand, normalize], [factor2, apart, normalize2, normalize], [trig1, normalize2],\
                  [factor1, normalize, trig6, normalize, expand, normalize, integrate_subs_main, normalize, factor2, simplify, integrate_trig_formula, trig1, apart, normalize2],\
-                 [normalize2, integrate_subs_main, expand, normalize, byparts, normalize], [simplify, integrate_trig_formula, trig1, integrate_formula]]:
+                 [normalize2, integrate_subs_main, expand, normalize, factor2, simplify, apart, normalize, expand, byparts, normalize],\
+                 [simplify, integrate_trig_formula, trig1, integrate_formula]]:
         for item2 in item:
             eq = item2(eq)
             if eq not in log:
-                print(eq)
+                if debug:
+                    print(eq)
                 log.append(eq)
             if is_solved(eq):
                 result = eq
