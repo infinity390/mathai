@@ -8,7 +8,7 @@ from .fraction import fraction
 from .simplify import simplify
 from .expand import expand
 from .base import *
-from .formula_applier import formula_list_applier
+from .formula_applier import formula_list_applier, formula_applier
 from .inverse import inverse
 from .tool import poly
 from fractions import Fraction
@@ -36,6 +36,8 @@ def subs_heuristic(eq, var):
         if eq.name == "f_pow" and frac(eq.children[1]) is not None and frac(eq.children[1]) == Fraction(1,2):
             if eq.children[0] == var:
                 output.append(str_form(eq))
+        if eq.name == "f_log":
+            output.append(str_form(eq))
         if eq.name in ["f_pow"] and var.name in str_form(eq):
             if eq.children[1].name[:2] != "v_":
                 output.append(str_form(eq))
@@ -66,20 +68,22 @@ def subs_heuristic(eq, var):
     tmp = list(set([simplify(tree_form(x)) for x in output]))
     tmp = sorted(tmp, key=lambda x: len(str_form(x)))
     poly_term = None
-    
+    poly_size = -1
     fx = is_integrate_subs
     output = []
     if set(all_branch(eq)) <= set("f_add f_mul f_pow".split(" ")):
         for item in tmp:
             if fx(item).name == "s_true":
-                poly_term = item
+                if len(item) > poly_size:
+                    poly_term = item
+                    poly_size = len(item)
             else:
                 output.append(item)
     p = None
     if poly_term is None:
         p = tmp
     else:
-        p = output+[poly_term]
+        p = [poly_term]+output
     last = list(set(last))
     if len(p)>3:
         p = p[:3]
@@ -176,12 +180,14 @@ def integrate_subs(equation, term, v1, v2, extra):
     equation = simplify(equation)
     eq = equation
     termeq = term
-    t = inverse(copy.deepcopy(termeq), v1)
-    g = inverse(copy.deepcopy(termeq), v2)
+    t = inverse(termeq, v1)
+    g = inverse(termeq, v2)
     if g is None:
         return none
     if t is None:
-        return none
+        equation = simplify(factor2(factor0(simplify(replace(eq, g, tree_form(v2))/diff(g, v1)))))
+        if v1 in str_form(equation):        
+            return none
     else:
         t = expand(t)
         eq3 = diff(g, v1)
@@ -193,6 +199,9 @@ def integrate_subs(equation, term, v1, v2, extra):
             eq = replace(eq, tree_form(v1), t)
             equation = eq/eq3
             equation = simplify(equation)
+            if v1 in str_form(equation):
+                equation = replace(equation, tree_form(v1), t)
+                equation = formula_applier(equation, "abs(x) x [] _ _ _ _")
     if v1 in str_form(equation):
         return none
     return dowhile(TreeNode("f_subs", [TreeNode("f_integrate", [simplify(equation), tree_form(origv2)]),tree_form(origv2) ,g]+extra), lambda x: simplify(trig4(trig0(x))))
@@ -321,13 +330,14 @@ def integrate_full(root):
         return "f_integrate" not in str_form(x)
     result = None
     root = normalize(root)
+    root = formula_applier(root, "(a^b)^c a^(b*c) [] b c _ _")
     normalize2 = lambda x: normalize(x, False)
     log = []
     orig = copy.deepcopy(root)
     eq = root
     for item in [[lambda x: x, simplify, expand, normalize], [factor2, apart, normalize2, normalize], [trig1, normalize2],\
                  [factor1, normalize, trig6, normalize, expand, normalize, integrate_subs_main, normalize, factor2, simplify, integrate_trig_formula, trig1, apart, normalize2],\
-                 [normalize, integrate_subs_main, normalize2, expand, normalize, byparts, normalize], [simplify, integrate_trig_formula, trig1, integrate_formula]]:
+                 [normalize2, integrate_subs_main, expand, normalize, byparts, normalize], [simplify, integrate_trig_formula, trig1, integrate_formula]]:
         for item2 in item:
             eq = item2(eq)
             if eq not in log:
