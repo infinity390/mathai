@@ -3,9 +3,14 @@ from .base import *
 from .simplify import simplify, addition_node_mat
 from .expand import expand
 from fractions import Fraction
+from .formula_applier import formula_list_applier
+
 ZERO = tree_form("d_0")
 ONE = tree_form("d_1")
+
+
 def tree_to_py(root):
+    """Recursively converts an expression tree to a Python list/scalar structure."""
     if not isinstance(root, TreeNode):
         return copy.deepcopy(root)
     stack = [(root, False)]
@@ -31,40 +36,31 @@ def tree_to_py(root):
                     ]
                 )
     return result[root]
+
+
 def py_to_tree(root):
+    """Recursively converts a Python list/scalar structure back into an expression tree."""
     if not isinstance(root, list):
         return copy.deepcopy(root)
-    stack = [(root, False)]
-    result = {}
-    while stack:
-        obj, visited = stack.pop()
-        if not visited:
-            stack.append((obj, True))
-            if isinstance(obj, list):
-                for item in obj:
-                    if isinstance(item, list):
-                        stack.append((item, False))
-        else:
-            children = []
-            for item in obj:
-                if isinstance(item, list):
-                    children.append(result[id(item)])
-                else:
-                    children.append(copy.deepcopy(item))
-            result[id(obj)] = TreeNode(
-                "f_list",
-                children
-            )
-    return result[id(root)]
+    children = [py_to_tree(item) for item in root]
+    return TreeNode("f_list", children)
+
+
 def promote(obj):
     return tree_to_py(obj)
+
+
 def is_scalar(obj):
     return isinstance(obj, TreeNode)
+
+
 def is_vector(obj):
     return (
         isinstance(obj, list)
         and all(isinstance(x, TreeNode) for x in obj)
     )
+
+
 def is_matrix(obj):
     if not isinstance(obj, list):
         return False
@@ -74,6 +70,8 @@ def is_matrix(obj):
         return False
     cols = len(obj[0])
     return all(len(row) == cols for row in obj)
+
+
 def dot(u, v):
     if len(u) != len(v):
         raise ValueError("Vector dimension mismatch")
@@ -81,6 +79,8 @@ def dot(u, v):
     for a, b in zip(u, v):
         out = out + a * b
     return simplify(out)
+
+
 def vec_add(A, B):
     if len(A) != len(B):
         raise ValueError("Vector dimension mismatch")
@@ -88,11 +88,15 @@ def vec_add(A, B):
         simplify(A[i] + B[i])
         for i in range(len(A))
     ]
+
+
 def scalar_vector(a, v):
     return [
         simplify(a * x)
         for x in v
     ]
+
+
 def mat_add(A, B):
     if len(A) != len(B):
         raise ValueError("Matrix dimension mismatch")
@@ -107,6 +111,8 @@ def mat_add(A, B):
         ]
         for i in range(rows)
     ]
+
+
 def mat_hadamard(A, B):
     if len(A) != len(B):
         raise ValueError("Matrix dimension mismatch")
@@ -121,6 +127,8 @@ def mat_hadamard(A, B):
         ]
         for i in range(rows)
     ]
+
+
 def scalar_matrix(a, M):
     return [
         [
@@ -129,6 +137,8 @@ def scalar_matrix(a, M):
         ]
         for row in M
     ]
+
+
 def identity_matrix(n):
     return [
         [
@@ -137,6 +147,8 @@ def identity_matrix(n):
         ]
         for i in range(n)
     ]
+
+
 def mat_mul(A, B):
     rows = len(A)
     inner = len(A[0])
@@ -147,77 +159,16 @@ def mat_mul(A, B):
     for i in range(rows):
         row = []
         for j in range(cols):
-            expr = 0
+            expr = ZERO
             for k in range(inner):
                 left = copy.deepcopy(A[i][k])
                 right = copy.deepcopy(B[k][j])
-                if isinstance(left, TreeNode) and isinstance(right, TreeNode):
-                    expr = frac_to_tree(expr)
                 expr = expr + (left * right)
-            row.append(
-                simplify(expr)
-            )
+            row.append(simplify(expr))
         C.append(row)
     return C
-def matrix_power(A, n):
-    if n < 0:
-        raise ValueError(
-            "Negative matrix powers not implemented"
-        )
-    rows = len(A)
-    if n == 0:
-        return [
-            [
-                ONE if i == j else ZERO
-                for j in range(rows)
-            ]
-            for i in range(rows)
-        ]
-    result = copy.deepcopy(A)
-    for _ in range(1, n):
-        result = mat_mul(
-            result,
-            copy.deepcopy(A)
-        )
-    return result
-def multiply(left, right):
-    A = promote(left)
-    B = promote(right)
-    if is_vector(A) and is_vector(B):
-        return dot(A, B)
-    if is_matrix(A) and is_matrix(B):
-        return py_to_tree(
-            mat_mul(A, B)
-        )
-    if is_scalar(A) and is_vector(B):
-        return py_to_tree(
-            scalar_vector(A, B)
-        )
-    if is_scalar(B) and is_vector(A):
-        return py_to_tree(
-            scalar_vector(B, A)
-        )
-    if is_scalar(A) and is_matrix(B):
-        return py_to_tree(
-            scalar_matrix(A, B)
-        )
-    if is_scalar(B) and is_matrix(A):
-        return py_to_tree(
-            scalar_matrix(B, A)
-        )
-    return None
-def addition(left, right):
-    A = promote(left)
-    B = promote(right)
-    if is_vector(A) and is_vector(B):
-        return py_to_tree(
-            vec_add(A, B)
-        )
-    if is_matrix(A) and is_matrix(B):
-        return py_to_tree(
-            mat_add(A, B)
-        )
-    return None
+
+
 def transpose_matrix(A):
     rows = len(A)
     cols = len(A[0])
@@ -228,15 +179,17 @@ def transpose_matrix(A):
         ]
         for j in range(cols)
     ]
+
+
 def determinant(M):
     n = len(M)
     if n == 1:
         return M[0][0]
     if n == 2:
         return simplify(
-            M[0][0]*M[1][1] - M[0][1]*M[1][0]
+            M[0][0] * M[1][1] - M[0][1] * M[1][0]
         )
-    det = tree_form("d_0")
+    det = ZERO
     for j in range(n):
         minor = [
             [
@@ -249,19 +202,95 @@ def determinant(M):
         cofactor = ((-1) ** j) * M[0][j]
         det = det + cofactor * determinant(minor)
     return simplify(det)
+
+
+def cofactor_matrix(M):
+    n = len(M)
+    C = []
+    for i in range(n):
+        row = []
+        for j in range(n):
+            minor = [
+                [
+                    M[r][c]
+                    for c in range(n)
+                    if c != j
+                ]
+                for r in range(n)
+                if r != i
+            ]
+            cval = determinant(minor)
+            if (i + j) % 2 == 1:
+                cval = simplify(ZERO - cval)
+            row.append(cval)
+        C.append(row)
+    return C
+
+
+def adjugate_matrix(M):
+    return transpose_matrix(cofactor_matrix(M))
+
+
+def matrix_inverse(M):
+    det = determinant(M)
+    adj = adjugate_matrix(M)
+    inv_scalar = TreeNode("f_div", [ONE, det])
+    return scalar_matrix(inv_scalar, adj)
+
+
+def matrix_power(A, n):
+    rows = len(A)
+    if n == 0:
+        return identity_matrix(rows)
+    if n < 0:
+        inv = matrix_inverse(A)
+        result = copy.deepcopy(inv)
+        for _ in range(1, -n):
+            result = mat_mul(result, copy.deepcopy(inv))
+        return result
+    result = copy.deepcopy(A)
+    for _ in range(1, n):
+        result = mat_mul(result, copy.deepcopy(A))
+    return result
+
+
+def multiply(left, right):
+    A = promote(left)
+    B = promote(right)
+    if is_vector(A) and is_vector(B):
+        return dot(A, B)
+    if is_matrix(A) and is_matrix(B):
+        return py_to_tree(mat_mul(A, B))
+    if is_scalar(A) and is_vector(B):
+        return py_to_tree(scalar_vector(A, B))
+    if is_scalar(B) and is_vector(A):
+        return py_to_tree(scalar_vector(B, A))
+    if is_scalar(A) and is_matrix(B):
+        return py_to_tree(scalar_matrix(A, B))
+    if is_scalar(B) and is_matrix(A):
+        return py_to_tree(scalar_matrix(B, A))
+    return None
+
+
+def addition(left, right):
+    A = promote(left)
+    B = promote(right)
+    if is_vector(A) and is_vector(B):
+        return py_to_tree(vec_add(A, B))
+    if is_matrix(A) and is_matrix(B):
+        return py_to_tree(mat_add(A, B))
+    return None
+
+
 def fold_wmul(root):
     stack = [(root, False)]
     result = {}
     while stack:
         node, visited = stack.pop()
         if not visited:
-            stack.append(
-                (node, True)
-            )
+            stack.append((node, True))
             for child in node.children:
-                stack.append(
-                    (child, False)
-                )
+                stack.append((child, False))
             continue
         children = [
             result[c]
@@ -274,24 +303,28 @@ def fold_wmul(root):
         if eq.name == "f_transpose":
             A = promote(eq.children[0])
             if is_matrix(A):
-                eq = py_to_tree(
-                    transpose_matrix(A)
-                )
+                eq = py_to_tree(transpose_matrix(A))
         elif eq.name == "f_det":
             A = promote(eq.children[0])
             if is_matrix(A):
                 eq = determinant(A)
+        elif eq.name == "f_adj":
+            A = promote(eq.children[0])
+            if is_matrix(A):
+                eq = py_to_tree(adjugate_matrix(A))
+        elif eq.name == "f_inverse":
+            A = promote(eq.children[0])
+            if is_matrix(A):
+                eq = py_to_tree(matrix_inverse(A))
+        elif eq.name == "f_dim":
+            A = promote(eq.children[0])
+            if is_matrix(A):
+                eq = TreeNode(str(len(A)))
         elif eq.name in ["f_mul", "f_wmul"]:
             changed = True
-            while (
-                changed
-                and
-                len(eq.children) > 1
-            ):
+            while changed and len(eq.children) > 1:
                 changed = False
-                for i in range(
-                    len(eq.children) - 1
-                ):
+                for i in range(len(eq.children) - 1):
                     out = multiply(
                         eq.children[i],
                         eq.children[i + 1]
@@ -299,10 +332,8 @@ def fold_wmul(root):
                     if out is not None:
                         eq.children = (
                             eq.children[:i]
-                            +
-                            [out]
-                            +
-                            eq.children[i + 2:]
+                            + [out]
+                            + eq.children[i + 2:]
                         )
                         changed = True
                         break
@@ -310,15 +341,9 @@ def fold_wmul(root):
                 eq = eq.children[0]
         elif eq.name == "f_add":
             changed = True
-            while (
-                changed
-                and
-                len(eq.children) > 1
-            ):
+            while changed and len(eq.children) > 1:
                 changed = False
-                for i in range(
-                    len(eq.children) - 1
-                ):
+                for i in range(len(eq.children) - 1):
                     out = addition(
                         eq.children[i],
                         eq.children[i + 1]
@@ -326,10 +351,8 @@ def fold_wmul(root):
                     if out is not None:
                         eq.children = (
                             eq.children[:i]
-                            +
-                            [out]
-                            +
-                            eq.children[i + 2:]
+                            + [out]
+                            + eq.children[i + 2:]
                         )
                         changed = True
                         break
@@ -342,16 +365,68 @@ def fold_wmul(root):
                 is_matrix(base)
                 and exponent is not None
                 and exponent.denominator == 1
-                and exponent >= 0
             ):
                 eq = py_to_tree(
                     matrix_power(
                         copy.deepcopy(base),
-                        exponent.numerator
+                        int(exponent.numerator)
                     )
                 )
         result[node] = eq
     return result[root]
+
+
+def helper_matrix(node):
+    if not isinstance(node, TreeNode):
+        return node
+
+    if node.name == "f_transpose" and len(node.children) == 1:
+        A = promote(node.children[0])
+        if is_matrix(A):
+            return py_to_tree(transpose_matrix(A))
+
+    elif node.name == "f_det" and len(node.children) == 1:
+        A = promote(node.children[0])
+        if is_matrix(A):
+            return determinant(A)
+
+    elif node.name == "f_adj" and len(node.children) == 1:
+        A = promote(node.children[0])
+        if is_matrix(A):
+            return py_to_tree(adjugate_matrix(A))
+
+    elif node.name == "f_inverse" and len(node.children) == 1:
+        A = promote(node.children[0])
+        if is_matrix(A):
+            return py_to_tree(matrix_inverse(A))
+
+    elif node.name == "f_dim" and len(node.children) == 1:
+        A = promote(node.children[0])
+        if is_matrix(A):
+            return TreeNode(str(len(A)))
+
+    return node
+
+
+matrix_formula_s = """
+adj(transpose(x)) transpose(adj(x)) [] _ _ _ _
+adj(product(k,x)) k^(dim(x)-1)*adj(x) [] _ k _ _
+adj(mprod(x,y)) wmul(adj(y),adj(x)) [] _ _ _ _
+adj(inverse(x)) inverse(adj(x)) [] _ _ _ _
+adj(x^n) adj(x)^n [] _ n n _
+det(adj(x)) det(x)^(dim(x)-1) [] _ _ _ _
+det(mprod(x,y)) det(x)*det(y) [] _ _ _ _
+det(transpose(x)) det(x) [] _ _ _ _
+det(x^n) det(x)^n [] _ n n _
+inverse(mprod(x,y)) wmul(inverse(y),inverse(x)) [] _ _ _ _
+inverse(transpose(x)) transpose(inverse(x)) [] _ _ _ _
+transpose(mprod(x,y)) wmul(transpose(y),transpose(x)) [] _ _ _ _
+transpose(transpose(x)) x [] _ _ _ _
+"""
+
+matrix_formula = lambda x: formula_list_applier(x, matrix_formula_s)
+
+
 def _matrix_solve2(eq):
     prev = None
     while prev != eq:
@@ -360,6 +435,9 @@ def _matrix_solve2(eq):
         eq = fold_wmul(eq)
         eq = simplify(eq)
         eq = transform_dfs(eq, helper_matrix)
+        eq = matrix_formula(eq)
     return eq
+
+
 def matrix_solve(eq):
     return _matrix_solve2(eq)

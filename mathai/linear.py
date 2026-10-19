@@ -100,6 +100,42 @@ def linear_solve(eq, lst=None):
     else:
         return eq
         
+    fxconst = (lambda x: False) if lst is None else (lambda x: any(contain(x, item) for item in lst))
+    
+    # 1. Collect all non-constant variables (vl) across all equations
+    vl = []
+    def varlist(node, fxconst):
+        nonlocal vl
+        if node.name[:2] == "v_" and not fxconst(node):
+            vl.append(node.name)
+        for child in node.children:
+            varlist(child, fxconst)
+            
+    for item in eqlist:
+        varlist(item, fxconst)
+    vl = sorted(list(set(vl)))
+
+    # 2. Check linearity by iterating through all equations and variables:
+    # If diff w.r.t a variable still contains any variable from vl, it's non-linear.
+    for eq_item in eqlist:
+        for v in vl:
+            d = simplify(diff(eq_item, v))
+            
+            # Helper to check if derivative 'd' contains any variable from vl
+            contains_var = False
+            def check_vars(node):
+                nonlocal contains_var
+                if node.name[:2] == "v_" and node.name in vl:
+                    contains_var = True
+                    return
+                for child in node.children:
+                    check_vars(child)
+            
+            check_vars(d)
+            if contains_var:
+                return None  # Non-linear expression detected
+
+    # 3. Proceed with linear solver and rref if check passes
     out = None
     if lst is None:
         out = linear(copy.deepcopy(eqlist), lambda x: False)

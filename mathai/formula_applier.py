@@ -16,15 +16,16 @@ _W_NAMES = {
 _COMMUTATIVE = frozenset(("f_addw", "f_mulw", "f_hadamardw"))
 _ORDERED_ASSOC = frozenset(("f_wmulw",))
 _LABEL_PREFIXES = frozenset(("f_", "s_", "d_"))
-_SPECIAL_PATTERN = frozenset(("f_poly", "f_sum", "f_product", "f_hprod"))
+_SPECIAL_PATTERN = frozenset(("f_poly", "f_sum", "f_product", "f_hprod", "f_mprod"))
 _PATTERN_OPS = {"f_sum": "f_addw", "f_product": "f_mulw", "f_hprod": "f_hadamardw"}
+_ORDERED_PATTERN_OPS = {"f_mprod": "f_wmulw"}
 _AGG_NAMES = frozenset((
     "f_addw", "f_add", "f_mulw", "f_mul", "f_hadamardw", "f_hadamard",
-    "f_product", "f_sum", "f_hprod", "f_poly",
+    "f_product", "f_sum", "f_hprod", "f_mprod", "f_poly", "f_wmulw", "f_wmul",
 ))
 _EXTRACT_NAMES = frozenset((
     "f_add", "f_wadd", "f_waddw", "f_wmul", "f_wmulw",
-    "f_mul", "f_product", "f_sum", "f_hprod", "f_poly",
+    "f_mul", "f_product", "f_sum", "f_hprod", "f_mprod", "f_poly",
 ))
 _DE_W_NAMES = frozenset(("f_addw", "f_mulw", "f_waddw", "f_hadamardw", "f_wmulw"))
 
@@ -32,7 +33,7 @@ _DE_W_NAMES = frozenset(("f_addw", "f_mulw", "f_waddw", "f_hadamardw", "f_wmulw"
 def transform_dfs(node, fn, stable=None):
     if node is None:
         return None
-    if stable is not None and node in stable:
+    if stable is not None and id(node) in stable:
         return node
     children = node.children
     if children is None:
@@ -50,15 +51,17 @@ def transform_dfs(node, fn, stable=None):
     if out is not None and out is not cur and out == cur:
         out = cur
     if stable is not None and unchanged and out is cur:
-        stable[cur] = cur
+        stable[id(cur)] = cur  # holding the reference keeps the id valid
     return out
 
 
 def dowhile(x, fn):
     while True:
         y = fn(x)
-        if y is x or y == x or y is None:
-            return x if y is None else y
+        if y is None:
+            return x
+        if y is x or y == x:
+            return y
         x = y
 
 
@@ -68,8 +71,10 @@ def _fixpoint(eq, fn):
     stable = {}
     while True:
         new = transform_dfs(eq, fn, stable)
-        if new is eq or new == eq or new is None:
-            return eq if new is None else new
+        if new is None:
+            return eq
+        if new is eq or new == eq:
+            return new
         eq = new
 
 
@@ -111,6 +116,8 @@ def _collect_labels(node, acc):
         acc.add("f_mulw")
     elif node.name == "f_hprod":
         acc.add("f_hadamardw")
+    elif node.name == "f_mprod":
+        acc.add("f_wmulw")
     elif node.name == "f_poly":
         acc.add("f_mulw")
         acc.add("f_addw")
@@ -190,6 +197,17 @@ def _as_exprs(x):
     return [x]
 
 
+def _as_pairs(x):
+    """Like _as_exprs but keeps [expr, value] pairs intact (no flattening)."""
+    if x is None or not isinstance(x, list):
+        return []
+    if x and all(isinstance(p, list) for p in x):
+        return [p for p in x if len(p) == 2]
+    if len(x) == 2 and not any(isinstance(p, list) for p in x):
+        return [x]  # a single bare pair
+    return []
+
+
 def _subst(node, mapping):
     if node is None:
         return None
@@ -254,9 +272,9 @@ def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_i
             out = extract_polynomial_coefficients(eq_plain, item, degree)
             if out is not None:
                 out = out[::-1]
-                while out[0] == 0:
+                while len(out) != 0 and out[0] == 0:
                     out.pop(0)
-                if len(out) == degree:                    
+                if len(out) == degree:
                     local_binding = binding.copy()
                     for i in range(1, len(f.children)):
                         local_binding[f.children[i].name] = out[i - 1]
@@ -293,6 +311,37 @@ def _match_struct_bind_core(eq, f, binding, const_1_vars, ignore_set, resolved_i
                     local_binding[f.children[1 - index].name] = operation(op_name, non_const_term)
                 binding.update(local_binding)
                 return True
+    if fname in _ORDERED_PATTERN_OPS and len(f.children) >= 2:
+        op_name = _ORDERED_PATTERN_OPS[fname]
+        if eq.name == op_name and len(eq.children) >= len(f.children):
+            fc, ec = f.children, eq.children
+            n = len(fc)
+            m = len(ec)
+            if m < n:
+                return False
+
+            def search_ordered_pattern(i, j, b):
+                if i == n:
+                    return b if j == m else None
+                pat = fc[i]
+                free = (not pat.children) and pat.name in free_vars
+                remaining_pats = n - i - 1
+                max_len = (m - j - remaining_pats) if free else 1
+                for L in range(1, max_len + 1):
+                    seg = ec[j] if L == 1 else TreeNode(op_name, list(ec[j:j + L]))
+                    sb = b.copy()
+                    if _match_struct_bind_core(seg, pat, sb, const_1_vars,
+                                               ignore_set, resolved_ignore, free_vars):
+                        r = search_ordered_pattern(i + 1, j + L, sb)
+                        if r is not None:
+                            return r
+                return None
+
+            result = search_ordered_pattern(0, 0, binding)
+            if result is None:
+                return False
+            binding.update(result)
+            return True
     if fname.startswith("v_") and not f.children and fname in free_vars:
         f_str = str_form(f)
         if f_str in binding:
@@ -391,11 +440,13 @@ def _match_struct_bind(eq, f, binding, const_1_vars=None, ignore_set=None,
 
 
 class _Matcher:
-    def __init__(self, formula, formula_out, positive=None, negative=None, ignore_list=None, const_1=None, forbidden_list=None):
+    def __init__(self, formula, formula_out, positive=None, negative=None,
+                 ignore_list=None, const_1=None, forbidden_list=None):
         self.orig_formula = formula
         self.formula_out = formula_out
         self.formula_w = en_w_addmul(formula)
-        self.root_name = self.formula_w.name if self.formula_w else ""
+        has_formula = self.formula_w is not None
+        self.root_name = self.formula_w.name if has_formula else ""
         f_sum_vars = set()
         _extract_f_sum_vars(self.formula_w, f_sum_vars)
         self.free_vars = frozenset(f_sum_vars)
@@ -404,15 +455,15 @@ class _Matcher:
         self.ignore_list_exprs = _as_exprs(ignore_list)
         self.ignore_set = {get_name(item) for item in self.ignore_list_exprs}
         self.ignore_names = {item.name for item in self.ignore_list_exprs}
-        self.forbidden_list_exprs = _as_exprs(forbidden_list)
-        
-        names = set(vlist(self.formula_w)) - f_sum_vars if self.formula_w else set()
+        self.forbidden_pairs = _as_pairs(forbidden_list)  # FIX: keep pairs intact
+
+        names = (set(vlist(self.formula_w)) - f_sum_vars) if has_formula else set()
         self.vl = sorted(names, key=lambda n: (0 if n in self.ignore_set else 1, n))
         self.must_be_var = {n: (n in self.ignore_set and n not in f_sum_vars) for n in self.vl}
         self.const_1_vars = {get_name(item) for item in _as_exprs(const_1)}
         self.must_be_const = {n: (n in self.const_1_vars) for n in self.vl}
         self.root_is_free = (
-            not self.formula_w
+            not has_formula
             or (self.root_name.startswith("v_") and not self.formula_w.children)
             or self.root_name in _SPECIAL_PATTERN
         )
@@ -423,19 +474,15 @@ class _Matcher:
         self._same_count = [count_same_nodes(self.orig_formula, TreeNode(x)) for x in self.vl]
 
     def _is_forbidden(self, mapping):
-        if not self.forbidden_list_exprs:
-            return False
-        for forb_pair in self.forbidden_list_exprs:
-            if isinstance(forb_pair, list) and len(forb_pair) == 2:
-                expr_part, forb_val = forb_pair[0], forb_pair[1]
-                subbed_expr = _subst(expr_part, mapping)
-                subbed_val = _subst(forb_val, mapping)
-                if subbed_expr is None or subbed_val is None:
-                    return True
-                simp_expr = simplify(subbed_expr)
-                simp_val = simplify(subbed_val)
-                if simp_expr is None or simp_val is None or simp_expr == simp_val:
-                    return True
+        for expr_part, forb_val in self.forbidden_pairs:
+            subbed_expr = _subst(expr_part, mapping)
+            subbed_val = _subst(forb_val, mapping)
+            if subbed_expr is None or subbed_val is None:
+                return True
+            simp_expr = simplify(subbed_expr)
+            simp_val = simplify(subbed_val)
+            if simp_expr is None or simp_val is None or simp_expr == simp_val:
+                return True
         return False
 
     def conditions_hold(self, mapping):
@@ -486,11 +533,11 @@ class _Matcher:
             eq_cand_w = en_w_addmul(equation)
             binding = {}
             if not _match_struct_bind(eq_w, eq_cand_w, binding, self.const_1_vars,
-                                       self.ignore_names, assigned_mapping, self.free_vars):
+                                      self.ignore_names, assigned_mapping, self.free_vars):
                 return None
             full_mapping = dict(assigned_mapping)
             full_mapping.update({k: de_w_addmul(v) for k, v in binding.items()})
-            
+
             if self._is_forbidden(full_mapping):
                 return None
 
@@ -549,8 +596,10 @@ class _Matcher:
         return dfs({}, 0, 0, frozenset())
 
 
-def structure(equation, formula, formula_out, ignore_list=None, const_1=None, positive=None, negative=None, forbidden_list=None):
-    return _Matcher(formula, formula_out, positive, negative, ignore_list, const_1, forbidden_list)(equation)
+def structure(equation, formula, formula_out, ignore_list=None, const_1=None,
+              positive=None, negative=None, forbidden_list=None):
+    return _Matcher(formula, formula_out, positive, negative, ignore_list,
+                    const_1, forbidden_list)(equation)
 
 
 def convert_lst(eq):
@@ -594,16 +643,15 @@ def _compile_rule(s):
     if parsed_subs:
         for key, value in parsed_subs:
             subs.setdefault(key, [None]).append(value)
-    
+
     lst = [convert_string(x) for x in item[3:]]
     lst += [None] * (5 - len(lst))
     ignore_list, const_1, positive, negative, forbidden_list = lst[:5]
-    
+
     keys = tuple(subs)
     matchers = []
     for combination in itertools.product(*subs.values()):
         x, y, pos, neg, forb = a, b, positive, negative, forbidden_list
-        valid_comb = True
         for key, value in zip(keys, combination):
             if value is not None:
                 x = replace(x, key, value)
@@ -611,22 +659,17 @@ def _compile_rule(s):
                 pos = _replace_in(pos, key, value)
                 neg = _replace_in(neg, key, value)
                 forb = _replace_in(forb, key, value)
-        
-        if forbidden_list is not None:
-            comb_map = {k: v for k, v in zip(keys, combination) if v is not None}
-            for forb_pair in _as_exprs(forbidden_list):
-                if isinstance(forb_pair, list) and len(forb_pair) == 2:
-                    sub_expr = _subst(forb_pair[0], comb_map)
-                    sub_val = _subst(forb_pair[1], comb_map)
-                    if sub_expr is None or sub_val is None:
-                        valid_comb = False
-                        break
-                    simp_expr = simplify(sub_expr)
-                    simp_val = simplify(sub_val)
-                    if simp_expr is None or simp_val is None or simp_expr == simp_val:
-                        valid_comb = False
-                        break
-        
+
+        # FIX: check the already-substituted pairs; skip combinations that are
+        # forbidden outright (e.g. a pair that simplifies to identical sides)
+        valid_comb = True
+        for expr_part, forb_val in _as_pairs(forb):
+            se = simplify(expr_part)
+            sv = simplify(forb_val)
+            if se is None or sv is None or se == sv:
+                valid_comb = False
+                break
+
         if valid_comb:
             simp_x = simplify(x)
             simp_y = simplify(y)

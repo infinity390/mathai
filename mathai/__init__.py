@@ -15,7 +15,7 @@ from .linear import linear_solve
 
 from .test import test
 
-from .decision import god, trig7
+from .decision import god
 
 from .expand import expand
 
@@ -54,7 +54,7 @@ from .limit import limit1, limit2, limit0, limit3, limit4, solve_inf, limit5
 
 from .univariate_inequality import wavycurvy, absolute, domain, handle_sqrt, prepare, eq2range, range2eq2, simple_wavycurvy
 
-from .matrix import matrix_solve
+from .matrix import matrix_solve, matrix_formula
 
 from .base import *
 from .printeq import printeq_obj, print_raw
