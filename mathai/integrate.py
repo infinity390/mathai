@@ -28,7 +28,7 @@ a*x+b true [] x [a,b] _ _
 a false [] x a _ _"""
 
 is_integrate_subs = formula_list_compiler(is_integrate_subs_s)
-
+tmp_fx2 = formula_list_compiler("(a^b)^c a^(b*c) [] b c _ _")
 def subs_heuristic(eq, var):
     output = []
     last = []
@@ -173,41 +173,65 @@ def solve_integrate(eq):
         eq2.children = list(set(eq2.children))
     return eq2
 
+# drops abs(): assumes the argument is non-negative (sqrt(u^2) -> u)
 tmp_fx = formula_list_compiler("abs(x) x [] _ _ _ _")
-tmp_fx2 = formula_list_compiler("(a^b)^c a^(b*c) [] b c _ _")
-def integrate_subs(equation, term, v1, v2, extra):
-    output = []
-    orig = equation.copy_tree()
-    none = TreeNode("f_integrate",[orig, tree_form(v1)])
-    origv2 = copy.deepcopy(v2)
+
+
+def _has(eq, v):
+    """True if the variable named v occurs in eq (structural, unlike `v in str_form(eq)`)."""
+    return eq is not None and contain(eq, tree_form(v))
+
+
+def integrate_subs(equation, term, v1, v2, extra=None):
+    """Integrate `equation` w.r.t. v1 with the substitution v2 = g(v1) derived from `term`.
+    Returns the unevaluated f_integrate(equation, v1) if the substitution doesn't work."""
+    extra = list(extra or [])
+    orig = copy.deepcopy(equation)
+    none = TreeNode("f_integrate", [orig, tree_form(v1)])
+
     equation = simplify(equation)
-    eq = equation
-    termeq = term
-    t = inverse(termeq, v1)
-    g = inverse(termeq, v2)
+    if equation is None:
+        return none
+
+    g = inverse(term, v2)
     if g is None:
         return none
+    dg = diff(g, v1)
+    if dg is None:
+        return none
+    t = inverse(term, v1)
+
     if t is None:
-        equation = simplify(factor2(factor0(simplify(replace(eq, g, tree_form(v2))/diff(g, v1)))))
-        if v1 in str_form(equation):        
+        inner = simplify(replace(equation, g, tree_form(v2)) / dg)
+        if inner is None:
             return none
+        equation = simplify(factor2(factor0(inner)))
     else:
         t = expand(t)
-        eq3 = diff(g, v1)
-        eq2 = replace(eq, g, tree_form(v2))
-        eq4 = simplify(eq2/eq3)
-        if not contain(eq4, tree_form(v1)):
+        eq4 = simplify(replace(equation, g, tree_form(v2)) / dg)
+        if eq4 is not None and not _has(eq4, v1):
             equation = eq4
         else:
-            eq = replace(eq, tree_form(v1), t)
-            equation = eq/eq3
-            equation = simplify(equation)
-            if v1 in str_form(equation):
-                equation = replace(equation, tree_form(v1), t)
-                equation = tmp_fx(equation)
-    if v1 in str_form(equation):
+            equation = simplify(replace(equation, tree_form(v1), t) / dg)
+            if equation is not None and _has(equation, v1):
+                equation = simplify(replace(equation, tree_form(v1), t))
+                equation = None if equation is None else tmp_fx(equation)
+
+    if equation is not None:
+        equation = simplify(equation)
+    if equation is None or _has(equation, v1):
         return none
-    return dowhile(TreeNode("f_subs", [TreeNode("f_integrate", [simplify(equation), tree_form(origv2)]),tree_form(origv2) ,g]+extra), lambda x: simplify(trig4(trig0(x))))
+
+    result = TreeNode(
+        "f_subs",
+        [TreeNode("f_integrate", [equation, tree_form(v2)]), tree_form(v2), g] + extra,
+    )
+
+    def step(x):
+        y = simplify(trig4(trig0(x)))
+        return x if y is None else y          # simplify() may return None
+
+    return dowhile(result, step)
 def integrate_subs_main_helper(equation):
     eq2 = equation
     if eq2.name == "f_integrate":
@@ -302,19 +326,28 @@ integrate(product(a,b),x) a*integrate(b,x) [] x a _ _
 """
 integrate_formula = formula_list_compiler(integrate_formula_s)
 
-integrate_trig_s = """integrate(cos(poly(x,a,b))/sin(poly(x,a,b)),x) log(abs(sin(a*x+b)))/a [] x [a,b] _ _
-integrate(sin(poly(x,a,b))/cos(poly(x,a,b)),x) -(log(abs(cos(a*x+b)))/a) [] x [a,b] _ _
-integrate(sin(x)/cos(x),x) -(log(abs(cos(x)))) [] x _ _ _ _
-integrate((sin(x)/cos(x))^a,x) tan(x)^(a-1)/(a-1)-integrate((sin(x)/cos(x))^(a-2),x) [] x a a _ [[a,1]]
-integrate((cos(x)/sin(x))^a,x) -(cot(x)^(a-1)/(a-1))-integrate((cos(x)/sin(x))^(a-2),x) [] x a a _ [[a,1]]
-integrate(cos(x)^a/sin(x),x) cos(x)^(a-1)/(a-1)+integrate(cos(x)^(a-2)/sin(x),x) [] x a a _ [[a,1]]
-integrate(sin(x)^a/cos(x),x) -(sin(x)^(a-1)/(a-1))+integrate(sin(x)^(a-2)/cos(x),x) [] x a a _ [[a,1]]
-integrate(sin(x)^a*cos(x)^b,x) -(sin(x)^(a+1)*cos(x)^(b+1)/(b+1))+(a+b+2)/(b+1)*integrate(sin(x)^a*cos(x)^(b+2),x) [] x [a,b] _ b [[b,-1]]
-integrate(sin(x)^a*cos(x)^b,x) sin(x)^(a+1)*cos(x)^(b+1)/(a+1)+(a+b+2)/(a+1)*integrate(sin(x)^(a+2)*cos(x)^b,x) [] x [a,b] _ a [[a,-1]]
-integrate(sin(x)^a,x) sin(x)^(a+1)*cos(x)/(a+1)+(a+2)/(a+1)*integrate(sin(x)^(a+2),x) [] x a _ a [[a,-1]]
-integrate(cos(x)^a,x) -(sin(x)*cos(x)^(a+1)/(a+1))+(a+2)/(a+1)*integrate(cos(x)^(a+2),x) [] x a _ a [[a,-1]]
-integrate(cos(x)*sin(x)^a,x) sin(x)^(a+1)/(a+1) [] x a _ _ [[a,-1]]
-integrate(sin(x)*cos(x)^a,x) -(cos(x)^(a+1)/(a+1)) [] x a _ _ [[a,-1]]"""
+integrate_trig_s = """integrate(cos(poly(x,m,n))/sin(poly(x,m,n)),x) log(abs(sin(m*x+n)))/m [] x [m,n] _ _
+integrate(sin(poly(x,m,n))/cos(poly(x,m,n)),x) -(log(abs(cos(m*x+n)))/m) [] x [m,n] _ _
+integrate((sin(poly(x,m,n))/cos(poly(x,m,n)))^a,x) tan(m*x+n)^(a-1)/(m*(a-1))-integrate((sin(m*x+n)/cos(m*x+n))^(a-2),x) [] x [a,m,n] a _ [[a,1]]
+integrate((cos(poly(x,m,n))/sin(poly(x,m,n)))^a,x) -(cot(m*x+n)^(a-1)/(m*(a-1)))-integrate((cos(m*x+n)/sin(m*x+n))^(a-2),x) [] x [a,m,n] a _ [[a,1]]
+integrate(cos(poly(x,m,n))^a/sin(poly(x,m,n)),x) cos(m*x+n)^(a-1)/(m*(a-1))+integrate(cos(m*x+n)^(a-2)/sin(m*x+n),x) [] x [a,m,n] a _ [[a,1]]
+integrate(sin(poly(x,m,n))^a/cos(poly(x,m,n)),x) -(sin(m*x+n)^(a-1)/(m*(a-1)))+integrate(sin(m*x+n)^(a-2)/cos(m*x+n),x) [] x [a,m,n] a _ [[a,1]]
+integrate(sin(poly(x,m,n))^a*cos(poly(x,m,n))^b,x) -(sin(m*x+n)^(a+1)*cos(m*x+n)^(b+1)/(m*(b+1)))+(a+b+2)/(b+1)*integrate(sin(m*x+n)^a*cos(m*x+n)^(b+2),x) [] x [a,b,m,n] _ b [[b,-1]]
+integrate(sin(poly(x,m,n))^a*cos(poly(x,m,n))^b,x) sin(m*x+n)^(a+1)*cos(m*x+n)^(b+1)/(m*(a+1))+(a+b+2)/(a+1)*integrate(sin(m*x+n)^(a+2)*cos(m*x+n)^b,x) [] x [a,b,m,n] _ a [[a,-1]]
+integrate(sin(poly(x,m,n))^a,x) sin(m*x+n)^(a+1)*cos(m*x+n)/(m*(a+1))+(a+2)/(a+1)*integrate(sin(m*x+n)^(a+2),x) [] x [a,m,n] _ a [[a,-1]]
+integrate(cos(poly(x,m,n))^a,x) -(sin(m*x+n)*cos(m*x+n)^(a+1)/(m*(a+1)))+(a+2)/(a+1)*integrate(cos(m*x+n)^(a+2),x) [] x [a,m,n] _ a [[a,-1]]
+integrate(cos(poly(x,m,n))*sin(poly(x,m,n))^a,x) sin(m*x+n)^(a+1)/(m*(a+1)) [] x [a,m,n] _ _ [[a,-1]]
+integrate(sin(poly(x,m,n))*cos(poly(x,m,n))^a,x) -(cos(m*x+n)^(a+1)/(m*(a+1))) [] x [a,m,n] _ _ [[a,-1]]
+integrate(sin(poly(x,m,n)),x) -(cos(m*x+n)/m) [] x [m,n] _ _
+integrate(cos(poly(x,m,n)),x) sin(m*x+n)/m [] x [m,n] _ _
+integrate(1/cos(poly(x,m,n)),x) log(abs(1/cos(m*x+n)+sin(m*x+n)/cos(m*x+n)))/m [] x [m,n] _ _
+integrate(1/sin(poly(x,m,n)),x) -(log(abs(1/sin(m*x+n)+cos(m*x+n)/sin(m*x+n)))/m) [] x [m,n] _ _
+integrate(sin(poly(x,m,n))*cos(poly(x,m,n)),x) sin(m*x+n)^2/(2*m) [] x [m,n] _ _
+integrate(1/(sin(poly(x,m,n))*cos(poly(x,m,n))),x) log(abs(tan(m*x+n)))/m [] x [m,n] _ _
+integrate(sin(poly(x,m,n))^a,x) -(sin(m*x+n)^(a-1)*cos(m*x+n)/(m*a))+(a-1)/a*integrate(sin(m*x+n)^(a-2),x) [] x [a,m,n] a-2 _ _
+integrate(cos(poly(x,m,n))^a,x) cos(m*x+n)^(a-1)*sin(m*x+n)/(m*a)+(a-1)/a*integrate(cos(m*x+n)^(a-2),x) [] x [a,m,n] a-2 _ _
+integrate(sin(poly(x,m,n))^a*cos(poly(x,m,n))^b,x) -(sin(m*x+n)^(a-1)*cos(m*x+n)^(b+1)/(m*(a+b)))+(a-1)/(a+b)*integrate(sin(m*x+n)^(a-2)*cos(m*x+n)^b,x) [] x [a,b,m,n] [a-2,b] _ _"""
+
 integrate_trig_formula = formula_list_compiler(integrate_trig_s)
 
 def normalize(x, f=True):

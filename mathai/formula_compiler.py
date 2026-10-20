@@ -1,13 +1,21 @@
 import copy
 import itertools
 import textwrap
+import warnings
 from .base import *
 from .simplify import simplify
 from .parser import parse
 from .formula_applier import (
     extract_polynomial_coefficients, convert_string, _as_pairs, _replace_in,
-    _as_exprs, get_name, en_w_addmul, formula_applier
+    _as_exprs, get_name, en_w_addmul, formula_applier,
 )
+
+try:
+    from .formula_applier import _split_rules
+except ImportError:
+    def _split_rules(s):
+        return tuple(line for line in s.strip().split("\n") if line.strip())
+
 
 # --- CONSTANTS & CONFIGURATION ---
 
@@ -18,29 +26,29 @@ _W_NAMES = {
     "f_wadd": "f_waddw",
     "f_wmul": "f_wmulw",
 }
-_COMMUTATIVE = frozenset(("f_addw", "f_mulw", "f_hadamardw"))
+_COMMUTATIVE = frozenset(("f_addw", "f_mulw", "f_hadamardw", "f_waddw"))
 _ORDERED_ASSOC = frozenset(("f_wmulw",))
 _LABEL_PREFIXES = frozenset(("f_", "s_", "d_"))
 _SPECIAL_PATTERN = frozenset(("f_poly", "f_sum", "f_wsum", "f_product", "f_hprod", "f_mprod"))
-_PATTERN_OPS = {"f_sum": "f_addw", "f_product": "f_mulw",
-                "f_hprod": "f_hadamardw", "f_wsum": "f_waddw"}
+_PATTERN_OPS = {
+    "f_sum": "f_addw",
+    "f_product": "f_mulw",
+    "f_hprod": "f_hadamardw",
+    "f_wsum": "f_waddw",
+}
 _ORDERED_PATTERN_OPS = {"f_mprod": "f_wmulw"}
 _AGG_NAMES = frozenset((
     "f_addw", "f_add", "f_mulw", "f_mul", "f_hadamardw", "f_hadamard",
-    "f_product", "f_sum", "f_hprod", "f_mprod", "f_poly", "f_wmulw", "f_wmul",
+    "f_product", "f_sum", "f_wsum", "f_hprod", "f_mprod", "f_poly", "f_wmulw", "f_wmul",
 ))
 _EXTRACT_NAMES = frozenset((
     "f_add", "f_wadd", "f_waddw", "f_wmul", "f_wmulw",
-    "f_mul", "f_product", "f_sum", "f_hprod", "f_mprod", "f_poly", "f_wsum", "f_wsumw"
+    "f_mul", "f_product", "f_sum", "f_wsum", "f_hprod", "f_mprod", "f_poly",
 ))
-_DE_W_NAMES = frozenset(("f_addw", "f_mulw", "f_waddw", "f_hadamardw", "f_wmulw", "f_wsumw"))
+_DE_W_NAMES = frozenset(("f_addw", "f_mulw", "f_waddw", "f_hadamardw", "f_wmulw"))
 
 
 # --- TREE NODE CLASS ---
-# FIX 1: `from .base import *` may already provide TreeNode (print_code2 emits
-# `a * b`, `~a`, `.fx(...)`, which only work on that class).  Redefining it here
-# shadowed it, giving two incompatible TreeNode classes with no __eq__/__hash__.
-# Keep base's class if it exists; otherwise use this complete fallback.
 
 if "TreeNode" not in globals():
     class TreeNode:
@@ -55,7 +63,6 @@ if "TreeNode" not in globals():
                 return repr(self.name)
             return f"TreeNode({self.name!r}, {self.children!r})"
 
-        # structural equality (generated code relies on `==` / `!=`)
         def __eq__(self, other):
             if not (hasattr(other, "name") and hasattr(other, "children")):
                 return NotImplemented
@@ -69,7 +76,6 @@ if "TreeNode" not in globals():
                 op = "f_" + op
             return TreeNode(op, [self])
 
-        # operators emitted by print_code2_with_varlist
         def __add__(self, o): return TreeNode("f_add", [self, o])
         def __radd__(self, o): return TreeNode("f_add", [o, self])
         def __mul__(self, o): return TreeNode("f_mul", [self, o])
@@ -92,7 +98,6 @@ def generate_tree_permutations(node):
         if node.name in _COMMUTATIVE:
             seen = set()
             for perm in itertools.permutations(combined_children):
-                # FIX 2: dedupe on a structural signature (identity hashing never matched)
                 sig = tuple(repr(c) for c in perm)
                 if sig not in seen:
                     seen.add(sig)
@@ -114,8 +119,6 @@ def de_w_addmul(eq):
 
 
 def print_condition(eq, printer=None):
-    # FIX 3: take the printer as a parameter (print_code2 used to fall into
-    # print_code_h) and don't IndexError when there is no else-branch.
     printer = printer or print_code_h
     assert eq.name == "f_condition"
 
@@ -152,8 +155,6 @@ def print_code_h(eq):
     if eq.name == "f_index":
         return f"{print_code_h(eq.children[0])}[{eq.children[1]}]"
     if eq.name == "f_any":
-        # NOTE: `any(A B)` is not valid Python; left as-is because the intended
-        # translation isn't clear from this file.
         return f"any({print_code_h(eq.children[0])} {print_code_h(eq.children[1])})"
     if eq.name == "f_list":
         return "[" + ", ".join(print_code_h(c) for c in eq.children) + "]"
@@ -169,9 +170,6 @@ def print_code2_with_varlist(eq, varlist):
         return "None"
     if not eq.children and eq.name in varlist:
         return varlist[eq.name]
-    # FIX 4: the unreachable s_true / s_false branches that followed this
-    # (shadowed by this check) were removed: in a tree-building context they
-    # must stay tree nodes, which is what this line produces.
     if eq.name.startswith(("d_", "v_", "s_")):
         return f"tree_form('{eq.name}')"
 
@@ -198,15 +196,12 @@ def print_code2_with_varlist(eq, varlist):
 
 
 def print_code(eq):
-    # FIX 5: dropped the blind str.replace loop (de_w_addmul already did the
-    # renaming; the replace could corrupt longer identifiers).
     return print_code_h(de_w_addmul(eq))
 
 
 # --- SPECIAL PATTERN MATCHERS ---
 
 def _split_const(children, resolved_ignore):
-    """Split into terms free of the 'variables of interest' and terms that use them."""
     const_t, non_t = [], []
     for ch in children:
         (non_t if set(vlist(ch)) & resolved_ignore else const_t).append(ch)
@@ -218,37 +213,45 @@ def _op(op_name, items):
 
 
 def _is_zero(node):
-    # TreeNode == 0 is False; zero is represented as the node "d_0"
     return node is not None and (getattr(node, "name", None) == "d_0" or node == 0)
 
 
 def special_pattern_poly(eq, f, binding):
-    # FIX 18: poly(x, a, b) = a*x + b has 2 coefficients -> degree 1.  Ask the
-    # extractor for exactly that degree (it returns degree+1 ascending
-    # coefficients, or None if eq has a higher degree) and require a nonzero
-    # leading coefficient.  The old code asked for degree 2, then stripped leading
-    # zeros with `out[0] == 0`, which is False for TreeNodes.
     n_coeffs = len(f.children) - 1
     if n_coeffs < 1:
         return False
+    var_name = f.children[0].name
+
+    if var_name in binding:
+        bound = binding[var_name]
+        if getattr(bound, "children", None) or not str(getattr(bound, "name", "")).startswith("v_"):
+            return False
+        candidates = [bound.name]
+    else:
+        candidates = vlist(eq)
+
     eq_plain = de_w_addmul(eq)
-    for item in vlist(eq):
+    for item in candidates:
         out = extract_polynomial_coefficients(eq_plain, item, n_coeffs - 1)
         if out is None or len(out) != n_coeffs or _is_zero(out[-1]):
             continue
-        out = out[::-1]                      # highest degree first
+        out = out[::-1]
         local_binding = binding.copy()
-        for i in range(1, len(f.children)):
-            local_binding[f.children[i].name] = out[i - 1]
-        local_binding[f.children[0].name] = TreeNode(item)
+        consistent = True
+        for c, val in zip(f.children[1:], out):
+            if c.name in binding and binding[c.name] != val:
+                consistent = False
+                break
+            local_binding[c.name] = val
+        if not consistent:
+            continue
+        local_binding[var_name] = TreeNode(item)
         binding.update(local_binding)
         return True
     return False
 
 
 def special_pattern(eq, f, binding, const_1_vars, resolved_ignore):
-    # FIX 6: the old code had two near-identical branches, accepted patterns with
-    # >2 children but only bound two of them, and used a strict-subset test.
     if eq is None or f is None:
         return False
     if f.name == "f_poly":
@@ -272,8 +275,8 @@ def special_pattern(eq, f, binding, const_1_vars, resolved_ignore):
     if not const_t:
         return False
     if not non_t:
-        binding[c0] = const_t[0]
-        binding[c1] = _op(op_name, const_t[1:])
+        binding[const_name] = const_t[0]
+        binding[other_name] = _op(op_name, const_t[1:])
     else:
         binding[const_name] = _op(op_name, const_t)
         binding[other_name] = _op(op_name, non_t)
@@ -316,15 +319,17 @@ def special_pattern_router(fname, eq, f=None, binding=None, const_1_vars=None, r
         return special_pattern_ordered(eq, f, binding, const_1_vars, resolved_ignore) if f else False
     if fname in _PATTERN_OPS:
         return special_pattern(eq, f, binding, const_1_vars, resolved_ignore) if f else False
+    if fname in _SPECIAL_PATTERN:
+        raise ValueError(
+            f"special pattern {fname!r} is not registered in _PATTERN_OPS / _ORDERED_PATTERN_OPS"
+        )
     return True
 
 
 # --- TWO-STEP COMPILER ---
 
 def _consumed(form_node):
-    """How many children of the matched node this pattern node uses
-    (an ordered-assoc child consumes two)."""
-    return sum(2 if c.name in _ORDERED_ASSOC else 1 for c in form_node.children)
+    return len(form_node.children)
 
 
 def _node_src(node):
@@ -340,9 +345,6 @@ def compile_permutation_matcher_two_step(
     negative=None,
     forbidden_list=None,
 ):
-    """Returns the *body* of a function of `eq`: it returns the rewritten tree
-    on a match and None otherwise.  Conditions are built as plain Python
-    expression strings joined with short-circuiting `and`."""
     ignore_list = ignore_list or []
     const_1 = const_1 or []
     positive = positive or []
@@ -350,24 +352,20 @@ def compile_permutation_matcher_two_step(
     forbidden_list = forbidden_list or []
 
     ignore_set = {get_name(i) for i in ignore_list}
-    # FIX 7: const_1 holds TreeNodes; the old `key in const_1` compared a str to
-    # TreeNodes and was never true.
     const_1_set = {get_name(i) for i in const_1}
 
-    varlist = {}      # pattern var name -> python expression that yields the bound subtree
-    specials = []     # (expr, pattern_node), checked after the structure matches
-    late_eq = []      # equalities involving special-bound vars; only valid after the router ran
+    varlist = {}
+    specials = []
+    late_eq = []
+    struct_expr = {}
 
     def helper(expr, form_node):
         name = form_node.name
 
         if name in _SPECIAL_PATTERN:
-            # FIX 8: special patterns were emitted as router calls with no pattern,
-            # no binding dict -> always False and never bound anything.
             specials.append((expr, form_node))
             for c in form_node.children:
                 if c.name in varlist:
-                    # FIX 16: var already bound structurally -> the router's binding must agree
                     late_eq.append(f"{varlist[c.name]} == _b[{c.name!r}]")
                 else:
                     varlist[c.name] = f"_b[{c.name!r}]"
@@ -376,37 +374,22 @@ def compile_permutation_matcher_two_step(
         if name.startswith("v_"):
             if name in varlist:
                 if varlist[name].startswith("_b["):
-                    # FIX 17: `_b[...]` doesn't exist until the router has run, so this
-                    # comparison must come after it (it used to be inline -> KeyError)
                     late_eq.append(f"{varlist[name]} == {expr}")
+                    struct_expr.setdefault(name, expr)
                     return "True"
                 return f"{varlist[name]} == {expr}"
             varlist[name] = expr
+            struct_expr[name] = expr
             return "True"
 
         n = _consumed(form_node)
-        access = [f"{expr}.children[{i}]" for i in range(n)]
-        child_exprs, pos = [], 0
-        for child in form_node.children:
-            if child.name in _ORDERED_ASSOC:
-                # FIX 9: wrap with the *child's* name (was the parent's name)
-                child_exprs.append(f"TreeNode({child.name!r}, [{access[pos]}, {access[pos + 1]}])")
-                pos += 2
-            else:
-                child_exprs.append(access[pos])
-                pos += 1
-
-        # FIX 10: length check uses the number of children actually consumed
         checks = [f"{expr}.name == {name!r}", f"len({expr}.children) == {n}"]
-        for child, ce in zip(form_node.children, child_exprs):
-            sub = helper(ce, child)
+        for i, child in enumerate(form_node.children):
+            sub = helper(f"{expr}.children[{i}]", child)
             if sub != "True":
                 checks.append(sub)
         return "(" + " and ".join(checks) + ")"
 
-    # FIX 11: the old `form_node.count` permutation hack enumerated n! orderings per
-    # node just to pick the last one.  Every pattern ordering is already produced by
-    # generate_tree_permutations, so matching children positionally is enough.
     match = helper("eq", tree_node)
 
     special_bound = {c.name for _, f in specials for c in f.children}
@@ -415,15 +398,16 @@ def compile_permutation_matcher_two_step(
 
     conds = [match]
 
-    # ignore-vars must be bare variables
     for e in struct_ignore:
         conds.append(f"({e}.name.startswith('v_') and not {e}.children)")
 
-    # FIX 12: `ignore` used to collect *every* v_ variable (and mid-traversal); it is
-    # now the ignore_list variables only, and special patterns get real variable names.
     c1_src = "set([" + ", ".join(repr(k) for k in sorted(const_1_set)) + "])"
     ig_src = "set([" + ", ".join(f"{e}.name" for e in struct_ignore) + "])"
     for expr, fnode in specials:
+        seed = {c.name: struct_expr[c.name] for c in fnode.children if c.name in struct_expr}
+        if seed:
+            items = ", ".join(f"{k!r}: {v}" for k, v in seed.items())
+            conds.append(f"(_b.update({{{items}}}) or True)")
         conds.append(
             f"special_pattern_router({fnode.name!r}, {expr}, {_node_src(fnode)}, _b, {c1_src}, {ig_src})"
         )
@@ -439,7 +423,6 @@ def compile_permutation_matcher_two_step(
         if k in varlist:
             conds.append(f"all(not contain({varlist[k]}, item) for item in {ig_list})")
 
-    # FIX 13: forbidden values were interpolated with repr() -> `x != 'd_0'`
     for lhs, val in forbidden_list:
         if lhs.name in varlist:
             conds.append(f"{varlist[lhs.name]} != {print_code2_with_varlist(val, varlist)}")
@@ -468,7 +451,7 @@ def indent_block(code_str, spaces=4):
     return textwrap.indent(code_str, " " * spaces)
 
 
-# --- CONTAINER (sub-multiset / sub-sequence) MATCH BLOCKS ---
+# --- CONTAINER MATCH BLOCKS ---
 
 def _commutative_block(op, k, fn):
     plain = op[:-1]
@@ -503,7 +486,6 @@ def _ordered_block(op, k, fn):
 
 
 def formula_compiler(s):
-    """Compile a rule string into a transformation function."""
     item = s.split(" ")
     a, b = (simplify(parse(x)) for x in item[:2])
 
@@ -559,10 +541,6 @@ def formula_compiler(s):
                 negative=_as_exprs(neg),
                 forbidden_list=_as_pairs(forb),
             )
-            # FIX 14: every matcher is its own top-level function with a parameter
-            # named `eq` (the generated code refers to `eq`, but the old wrapper
-            # called its parameter `sub_eq`), and indentation is done with
-            # textwrap instead of multi-line f-string interpolation.
             fn = f"_m{len(fn_defs)}"
             fn_defs.append(f"def {fn}(eq):\n" + indent_block(body, 4))
 
@@ -573,10 +551,12 @@ def formula_compiler(s):
             else:
                 blocks.append(f"r = {fn}(eq)\nif r is not None:\n    return r\n")
 
+    if not fn_defs:
+        warnings.warn(f"rule produced no matchers (simplify returned None?): {s!r}")
+
     src = "\n\n".join(fn_defs) + "\n\n"
     src += "def transform(eq_orig):\n    eq = copy.deepcopy(eq_orig)\n"
     for blk in blocks:
-        # FIX 15: blocks used to be appended at column 0, i.e. outside the def
         src += indent_block(blk, 4) + "\n"
     src += "    return eq_orig\n"
 
@@ -604,38 +584,27 @@ def formula_compiler(s):
     def apply(x):
         w = en_w_addmul(x)
         out = env["transform"](w)
-        if out is w:              # no rule matched: hand back the very same object
+        if out is w:
             return x
-        return None if out is None else de_w_addmul(out)   # simplify() can return None
+        return None if out is None else de_w_addmul(out)
 
-    apply.source = src   # handy for debugging
+    apply.source = src
     return apply
+
+
+formula_compiler_from_rule_string = formula_compiler
 
 
 # --- RULE LISTS ---
 
-try:
-    from .formula_applier import _split_rules
-except ImportError:
-    def _split_rules(s):
-        return tuple(line for line in s.strip().split("\n") if line.strip())
-
-
 def transform_dfs_changed(root, func, arg=None, key=None):
-    """Iterative post-order transform that
-      * only rebuilds a node if one of its children actually changed,
-      * re-normalises a node's replacement when func changes it (so no outer
-        dowhile is needed), and
-      * never processes the same subtree twice: every subtree that has reached a
-        fixed point is cached by structural key and reused.
-    `func(node, *arg)` may return None or the same node to mean 'unchanged'."""
     if root is None:
         return None
     arg = () if arg is None else arg
     key = key or str_form
-    stable = {}            # key(subtree) -> fully normalised subtree
-    in_progress = set()    # keys being normalised (guards against rewrite cycles)
-    values = []            # results of finished 'visit's, in visiting order
+    stable = {}
+    in_progress = set()
+    values = []
     stack = [("visit", root, None)]
 
     def finish(sig, cur, out):
@@ -652,7 +621,7 @@ def transform_dfs_changed(root, func, arg=None, key=None):
             if sig in stable:
                 values.append(stable[sig])
                 continue
-            if sig in in_progress:        # A -> B -> A: stop, keep as is
+            if sig in in_progress:
                 values.append(node)
                 continue
             in_progress.add(sig)
@@ -664,44 +633,37 @@ def transform_dfs_changed(root, func, arg=None, key=None):
             kids = values[len(values) - n:]
             del values[len(values) - n:]
             if all(a is b for a, b in zip(kids, node.children)):
-                cur = node                       # nothing below changed: reuse
+                cur = node
             else:
                 cur = TreeNode(node.name, kids)
             res = func(cur, *arg)
             if res is None or res is cur or key(res) == key(cur):
-                finish(sig, cur, cur)            # unchanged
+                finish(sig, cur, cur)
             else:
                 stack.append(("record", cur, sig))
-                stack.append(("visit", res, None))   # changed: normalise the new subtree
-        else:  # record
+                stack.append(("visit", res, None))
+        else:
             finish(sig, node, values.pop())
     return values[-1]
- 
+
+
 def formula_list_compiler(s, mode="fixpoint"):
-    """Compile a multi-line rule string (one rule per line) into one function.
-    mode="fixpoint": transform_dfs_changed (skips unchanged / already-stable nodes)
-    mode="dowhile" : whole-tree dowhile(transform_dfs(...)) loop
-    A line starting with "@" is always handled by formula_applier (the "@" is stripped);
-    other lines go there only if _needs_applier() says so."""
- 
     rules = []
     for line in _split_rules(s):
         line = line.strip()
-        forced = line.startswith("@")          # "@rule ..." = always use formula_applier
-        if forced:
+        if line.startswith("@"):
             line = line[1:].strip()
-        if forced:
             rules.append(lambda x, line=line: formula_applier(x, line))
         else:
             rules.append(formula_compiler(line))
- 
+
     def node_fn(node):
         for rule in rules:
             r = rule(node)
             if r is not None:
                 node = r
         return node
- 
+
     if mode == "dowhile":
         def apply(eq):
             if eq is None:
@@ -712,7 +674,7 @@ def formula_list_compiler(s, mode="fixpoint"):
             return None if eq is None else transform_dfs_changed(eq, node_fn)
     else:
         raise ValueError("mode must be 'fixpoint' or 'dowhile'")
- 
+
     apply.rules = rules
     apply.node_fn = node_fn
     apply.sources = [getattr(r, "source", None) for r in rules]

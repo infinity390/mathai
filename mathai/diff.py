@@ -10,6 +10,7 @@ pdif(cos(a),x) -sin(a)*pdif(a,x) [] x _ _ _
 pdif(arcsin(a),x) (1/sqrt(1-a^2))*pdif(a,x) [] x _ _ _
 pdif(arccos(a),x) (-1/sqrt(1-a^2))*pdif(a,x) [] x _ _ _
 pdif(arctan(a),x) (1/(1+a^2))*pdif(a,x) [] x _ _ _
+pdif(log(a),x) (1/a)*pdif(a,x) [] x _ _ _
 pdif(k,x) 0 [] x k _ _
 pdif(x,x) 1 [] x _ _ _
 pdif(product(a,b),x) pdif(a,x)*b+a*pdif(b,x) [] x _ _ _
@@ -20,5 +21,5 @@ diff2 = formula_list_compiler(diff2_s)
 
 def diff(equation, var=None):
     var = var if var else "v_0"
-    out = diff2(simplify(TreeNode("f_pdif", [equation, tree_form(var)])))
+    out = simplify(diff2(simplify(TreeNode("f_pdif", [equation, tree_form(var)]))))
     return out

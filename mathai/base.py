@@ -379,6 +379,7 @@ def factor_generation(eq, prime=False):
             else:
                 output.append(child)
     return output
+
 def compute(eq):
     if not isinstance(eq, TreeNode):
         return eq
@@ -388,52 +389,60 @@ def compute(eq):
         elif eq.name == "s_pi":
             return math.pi
         elif eq.name.startswith("d_"):
-            return float(eq.name[2:])
+            try:
+                return float(eq.name[2:])
+            except ValueError:
+                return None
         else:
             return None
+            
     values = [compute(child) for child in eq.children]
     if None in values:
         return None
-    if eq.name == "f_floor":
-        return math.floor(values[0])
-    elif eq.name == "f_ceil":
-        return math.ceil(values[0])
-    elif eq.name == "f_add":
-        return sum(values)
-    elif eq.name == "f_mod":
-        return values[0] % values[1]
-    elif eq.name == "f_abs":
-        return math.fabs(values[0])
-    elif eq.name == "f_sub":
-        return values[0] - values[1]
-    elif eq.name == "f_rad":
-        return values[0] * math.pi / 180
-    elif eq.name in ["f_wmul", "f_mul"]:
-        result = 1.0
-        for v in values:
-            result *= v
-        return result
-    elif eq.name == "f_neg":
-        return -values[0]
-    elif eq.name == "f_div":
-        return values[0] / values[1]
-    elif eq.name == "f_pow":
-        return math.pow(values[0],values[1])
-    elif eq.name == "f_sin":
-        return math.sin(values[0])
-    elif eq.name == "f_cos":
-        return math.cos(values[0])
-    elif eq.name == "f_tan":
-        return math.tan(values[0])
-    elif eq.name == "f_arcsin":
-        return math.asin(values[0])
-    elif eq.name == "f_arccos":
-        return math.acos(values[0])
-    elif eq.name == "f_arctan":
-        return math.atan(values[0])
-    elif eq.name == "f_log":
-        return math.log(values[0])
-    else:
+        
+    try:
+        if eq.name == "f_floor":
+            return math.floor(values[0])
+        elif eq.name == "f_ceil":
+            return math.ceil(values[0])
+        elif eq.name == "f_add":
+            return sum(values)
+        elif eq.name == "f_mod":
+            return values[0] % values[1] if values[1] != 0 else None
+        elif eq.name == "f_abs":
+            return math.fabs(values[0])
+        elif eq.name == "f_sub":
+            return values[0] - values[1]
+        elif eq.name == "f_rad":
+            return values[0] * math.pi / 180
+        elif eq.name in ["f_wmul", "f_mul"]:
+            result = 1.0
+            for v in values:
+                result *= v
+            return result
+        elif eq.name == "f_neg":
+            return -values[0]
+        elif eq.name == "f_div":
+            return values[0] / values[1] if values[1] != 0 else None
+        elif eq.name == "f_pow":
+            return math.pow(values[0], values[1])
+        elif eq.name == "f_sin":
+            return math.sin(values[0])
+        elif eq.name == "f_cos":
+            return math.cos(values[0])
+        elif eq.name == "f_tan":
+            return math.tan(values[0])
+        elif eq.name == "f_arcsin":
+            return math.asin(values[0])
+        elif eq.name == "f_arccos":
+            return math.acos(values[0])
+        elif eq.name == "f_arctan":
+            return math.atan(values[0])
+        elif eq.name == "f_log":
+            return math.log(values[0]) if values[0] > 0 else None
+        else:
+            return None
+    except (ValueError, ZeroDivisionError, IndexError):
         return None
 def num_dem(equation):
     num = []

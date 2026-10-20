@@ -1,61 +1,53 @@
-integrate(cos(2*x),x)
-integrate(3*x^2+4*x^3,x)
-integrate(1/x,x)
-integrate((x^3-1)/x^2,x)
-integrate(x^(2/3)+1,x)
-integrate(x^(3/2)+2*e^x-1/x,x)
-integrate(sin(x)+cos(x),x)
-integrate(cosec(x)*(cosec(x)+cot(x)),x)
-integrate((1-sin(x))/cos(x)^2,x)
-integrate(sin(2*x),x)
-integrate(cos(3*x),x)
-integrate(e^(2*x),x)
-integrate((a*x+b)^2,x)
-integrate(sin(2*x)-4*e^(3*x),x)
-integrate(4*e^(3*x)+1,x)
-integrate(x^2*(1-1/x^2),x)
-integrate(a*x^2+b*x+c,x)
-integrate(2*x^2+e^x,x)
-integrate((sqrt(x)-1/sqrt(x))^2,x)
-integrate((x^3+5*x^2-4)/x^2,x)
-integrate((x^3+3*x+4)/sqrt(x),x)
-integrate((x^3-x^2+x-1)/(x-1),x)
-integrate((1-x)*sqrt(x),x)
-integrate(sqrt(x)*(3*x^2+2*x+3),x)
-integrate(2*x-3*cos(x)+e^x,x)
-integrate(2*x^2-3*sin(x)+5*sqrt(x),x)
-integrate(sec(x)*(sec(x)+tan(x)),x)
-integrate(sec(x)^2/cosec(x)^2,x)
-integrate((2-3*sin(x))/cos(x)^2,x)
-integrate(sqrt(x)+1/sqrt(x),x)
-integrate(sin(x)^3*cos(x)^2,x)
-integrate(sin(x)/sin(x+a),x)
-integrate(1/(1+tan(x),x)
-integrate((e^(2*x)-1)/(e^(2*x)+1),x)
-integrate((e^(2*x)-e^(-2*x))/(e^(2*x)+e^(-2*x)),x)
-integrate(tan(2*x-3)^2,x)
-integrate(sec(7-4*x)^2,x)
-integrate(arcsin(x)/sqrt(1-x^2),x)
-integrate((2*cos(x)-3*sin(x))/(6*cos(x)+4*sin(x)),x)
-integrate((4*x+2)*sqrt(x^2+x+1),x)
-integrate(1/(x-sqrt(x)),x)
-integrate(1/(x*log(x)^m),x)
-integrate(e^arctan(x)/(1+x^2),x)
-integrate(x/e^(x^2),x)
-integrate(e^(2*x+3),x)
-integrate(x/(9-4*x^2),x)
-integrate(x^2/(2+3*x^3)^3,x)
-integrate((x^3-1)^(1/3)*x^5,x)
-integrate(x/sqrt(x+4),x)
-integrate(x*sqrt(1+2*x^2),x)
-integrate(x*sqrt(x+2),x)
-integrate(sqrt(a*x+b),x)
-integrate(sin(a*x+b)*cos(a*x+b),x)
-integrate(sin(cos(x))*sin(x),x)
-integrate(2*x/(1+x^2),x)
-integrate(log(x)^2/x,x)
-integrate(1/(x+log(x)*x),x)
-integrate(tan(sqrt(x))^4*sec(sqrt(x))^2/sqrt(x),x)
-integrate(sin(arctan(x))/(1+x^2),x)
-integrate(2*x*sin(x^2+1),x)
-integrate(sin(m*x),x)
+integrate(cos(2*x),x) integrate_formula
+integrate(3*x^2+4*x^3,x) integrate_formula
+integrate(1/x,x) integrate_formula
+integrate((x^3-1)/x^2,x) expand simplify integrate_formula
+integrate(x^(2/3)+1,x) integrate_formula
+integrate(x^(3/2)+2*e^x-1/x,x) integrate_formula
+integrate(sin(x)+cos(x),x) integrate_formula
+integrate(cosec(x)*(cosec(x)+cot(x)),x) trig0 fraction integrate_formula expand integrate_formula simplify integrate_trig_formula
+integrate((1-sin(x))/cos(x)^2,x) expand integrate_formula integrate_trig_formula
+integrate(sin(2*x),x) integrate_formula
+integrate(cos(3*x),x) integrate_formula
+integrate(e^(2*x),x) integrate_formula
+integrate((a*x+b)^2,x) integrate_formula
+integrate(sin(2*x)-4*e^(3*x),x) integrate_formula
+integrate(4*e^(3*x)+1,x) integrate_formula
+integrate(x^2*(1-1/x^2),x) expand simplify integrate_formula
+integrate(a*x^2+b*x+c,x) integrate_formula
+integrate(2*x^2+e^x,x) integrate_formula
+integrate((sqrt(x)-1/sqrt(x))^2,x) expand simplify integrate_formula
+integrate((x^3+5*x^2-4)/x^2,x) expand simplify integrate_formula
+integrate((x^3+3*x+4)/sqrt(x),x) expand simplify integrate_formula
+integrate((x^3-x^2+x-1)/(x-1),x) expand integrate_formula apart integrate_formula integrate_subs expand simplify integrate_formula integrate_clean
+integrate((1-x)*sqrt(x),x) expand simplify integrate_formula
+integrate(sqrt(x)*(3*x^2+2*x+3),x) expand simplify integrate_formula
+integrate(2*x-3*cos(x)+e^x,x) simplify integrate_formula
+integrate(2*x^2-3*sin(x)+5*sqrt(x),x) integrate_formula
+integrate(sec(x)*(sec(x)+tan(x)),x) expand trig0 simplify integrate_formula integrate_trig_formula integrate_formula
+integrate(sec(x)^2/cosec(x)^2,x) trig0 simplify integrate_trig_formula integrate_formula trig1 integrate_formula
+integrate((2-3*sin(x))/cos(x)^2,x) expand simplify integrate_trig_formula integrate_formula integrate_trig_formula integrate_formula
+integrate(sqrt(x)+1/sqrt(x),x) expand simplify integrate_formula
+integrate(sin(x)^3*cos(x)^2,x) trig1 integrate_formula
+integrate(sin(x)/sin(x+a),x) integrate_subs trig4 expand simplify integrate_formula integrate_trig_formula integrate_formula integrate_clean
+integrate((e^(2*x)-1)/(e^(2*x)+1),x) integrate_subs integrate_formula expand simplify apart integrate_formula integrate_clean
+integrate((e^(2*x)-e^(-2*x))/(e^(2*x)+e^(-2*x)),x) integrate_subs integrate_formula fraction simplify apart integrate_formula integrate_fraction integrate_clean
+integrate(tan(2*x-3)^2,x) trig0 integrate_trig_formula integrate_formula
+integrate(sec(7-4*x)^2,x) trig0 simplify integrate_trig_formula integrate_formula
+integrate((4*x+2)*sqrt(x^2+x+1),x) integrate_subs integrate_formula integrate_clean
+integrate(1/(x-sqrt(x)),x) integrate_subs integrate_formula factor2 apart integrate_formula integrate_clean
+integrate(e^arctan(x)/(1+x^2),x) integrate_subs integrate_formula integrate_clean
+integrate(x/e^(x^2),x) integrate_subs integrate_formula integrate_clean
+integrate(e^(2*x+3),x) integrate_formula
+integrate(x/(9-4*x^2),x) factor2 integrate_formula simplify apart simplify integrate_formula
+integrate(x^2/(2+3*x^3)^3,x) integrate_subs integrate_formula integrate_clean
+integrate(x*sqrt(1+2*x^2),x) integrate_subs integrate_formula integrate_clean
+integrate(x*sqrt(x+2),x) integrate_subs integrate_formula expand simplify integrate_formula integrate_clean
+integrate(sqrt(a*x+b),x) integrate_formula
+integrate(sin(a*x+b)*cos(a*x+b),x) trig1 integrate_formula
+integrate(sin(cos(x))*sin(x),x) integrate_subs integrate_formula integrate_clean
+integrate(2*x/(1+x^2),x) integrate_formula integrate_fraction
+integrate(log(x)^2/x,x) integrate_subs simplify integrate_formula simplify integrate_formula integrate_clean
+integrate(sin(arctan(x))/(1+x^2),x) integrate_subs integrate_formula integrate_clean
+integrate(2*x*sin(x^2+1),x) integrate_formula integrate_subs integrate_formula integrate_clean
+integrate(sin(m*x),x) integrate_formula

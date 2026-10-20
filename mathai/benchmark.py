@@ -1,18 +1,25 @@
 import random
-from .decision import god
-def benchmark_ncert(max_count=5):
+from .simplify import simplify
+from .expand import expand
+from .parser import parse
+from .fraction import fraction
+from .apart import apart
+from .integrate import integrate_formula, integrate_trig_formula, integrate_fraction
+from .integrate import integrate_subs_main as integrate_subs
+from .integrate import solve_integrate as integrate_clean
+from .factor import factor2
+from .trig import trig0, trig1, trig4
+fx_list = [simplify, expand, fraction, integrate_formula, integrate_subs, integrate_trig_formula, integrate_clean, apart, trig0, trig1, trig4, integrate_fraction, factor2]
+name_list = "simplify, expand, fraction, integrate_formula, integrate_subs, integrate_trig_formula, integrate_clean, apart, trig0, trig1, trig4, integrate_fraction, factor2".split(", ")
+def benchmark_ncert():
     with open("mathai/ncert_data.txt", "r", encoding="utf-8") as file:
         content = file.read()
         content = content.strip().split("\n")
-        random.shuffle(content)
-        output = []
-        count = 1
-        if len(max_count) > len(content):
-            max_count = len(content)
-        for item in content[:max_count]:
-            print(f"{count}/{max_count}")
+        count = 0
+        for item in content:
             count += 1
-            output.append((item, god(item, False)))
-        print()
-        for index, item in enumerate(output):
-            print(f"{index+1}. {item[0]} => {item[1]}")
+            item = item.strip()
+            eq = simplify(parse(item.split(" ")[0]))
+            for item2 in item.split(" ")[1:]:
+                eq = fx_list[name_list.index(item2)](eq)
+            print(f"{count}. {item.split(" ")[0]} => {eq}")
