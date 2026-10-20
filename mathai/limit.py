@@ -159,14 +159,15 @@ def is_negative(eq):
             return True
     return False
 limit3_s = """limitpinf(product(a,b),x) a*limitpinf(b,x) [] x a _ _
-limitpinf(x^c*e^(poly(x,d,f)),x) 0 [] x [d,f] _ _
+limitpinf(x^c*e^(poly(x,d,f)),x) 0 [] x [d,f,c] _ _
 limitpinf(x*e^(poly(x,d,f)),x) 0 [] x [d,f] _ _
 limitpinf(e^(poly(x,d,f)),x) 0 [] x [d,f] _ _
-limitpinf(x^c,x) 0 [] x _ _ _
+limitpinf(x^c,x) 0 [] x c _ _
 limitpinf(sum(a,b),x) limitpinf(a,x)+limitpinf(b,x) [] x _ _ _
 limitpinf(a,x) a [] x a _ _"""
 
 limit3 = formula_list_compiler(limit3_s)
+
 def solve_inf(eq):
     stack = [(eq, False)]
     result = {}

@@ -8,7 +8,7 @@ from .fraction import fraction
 from .simplify import simplify
 from .expand import expand
 from .base import *
-from .formula_compiler import formula_list_compiler, formula_compiler
+from .formula_compiler import formula_list_compiler
 from .inverse import inverse
 from .tool import poly
 from fractions import Fraction

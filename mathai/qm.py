@@ -18,7 +18,7 @@ from .integrate import integrate_formula, integrate_full
 from .integrate import normalize as integration_basic
 
 from .diff import diff
-from .formula_applier import formula_applier
+from .formula_compiler import formula_list_compiler
 
 def helium_gse():
     basic_int = lambda x: dowhile(x, lambda y: expand(simplify(integrate_formula(y))))
@@ -155,7 +155,7 @@ def helium_gse():
     return compute(simplify(H/e1))
 
 power_rule_s = "a^sum(b,c) a^b*a^c [] x _ _ _"
-power_rule = lambda x: formula_applier(x, power_rule_s)
+power_rule = formula_list_compiler(power_rule_s)
 
 def hydrogen_gse():
     basic_int = lambda x: dowhile(x, lambda y: integrate_formula(simplify(expand(simplify(power_rule(y))))))
@@ -186,7 +186,7 @@ def hydrogen_gse():
     integral_psiHpsi = TreeNode("f_integrate", [psiHpsi * parse("4")* pi * r**2, r])
     integral_psiHpsi = basic_int(integral_psiHpsi)
     a = limit1(TreeNode("f_limit", [integral_psiHpsi, r]))
-    b = limit3(limit2(expand(TreeNode("f_limitpinf", [integral_psiHpsi, r]))))
+    b = limit3(simplify(expand(TreeNode("f_limitpinf", [integral_psiHpsi, r]))))
     integral_psiHpsi = algebra(b-a)
     result =  integral_psiHpsi / integral_psi2
     return compute(simplify(result /e1))
