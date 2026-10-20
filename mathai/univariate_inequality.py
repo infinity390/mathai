@@ -603,13 +603,6 @@ def domain(eq):
     return out
 
 def simple_wavycurvy(eq, mode=False):
-    if vlist(eq) == [] and (contain2(eq, "f_floor") or contain2(eq, "f_ceil")):
-        return dowhile(eq, lambda x: logic0(nothing(x)))
-    fx = lambda x: dowhile(x, lambda y: logic0(fraction(simplify(y))))
-    eq = fx(eq)
-    if "sqrt" in str(eq):
-        eq = handle_sqrt(eq)
-        eq = fx(eq)
     eq = factor2(eq)
     eq = simplify(eq, True, True)
     eq = wavycurvy(eq, mode)

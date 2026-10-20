@@ -7,7 +7,7 @@ from .qm import hydrogen_gse, helium_gse, power_rule
 
 from .graphics import draw_graphics_from_solution, solve_graphics, solve_graphics_string
 
-from .benchmark import benchmark_ncert
+from .benchmark import benchmark
 
 from .formula_compiler import formula_compiler
 from .formula_compiler import formula_list_compiler
