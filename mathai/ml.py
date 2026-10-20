@@ -1,4 +1,4 @@
-from .formula_applier import formula_list_applier
+from .formula_compiler import formula_list_compiler
 import itertools
 from .parser import parse, remove_extra_brackets
 from .simplify import simplify, addition_node_mat
@@ -137,21 +137,22 @@ matrix_vectorization_calculus_s = """wmul(identity(a),b) b [] x _ _ _
 wmul(b,identity(a)) b [] x _ _ _
 pdif(k,vec(x)) 0 [] x k _ _
 pdif(hprod(k,a),vec(x)) hadamard(k,pdif(a,vec(x))) [] x k _ _
-pdif(wadd(a,b),vec(x)) wadd(pdif(a,vec(x)),pdif(b,vec(x))) [] x _ _ _
-pdif(vec(wadd(a,b)),vec(x)) wadd(pdif(vec(a),vec(x)),pdif(vec(b),vec(x))) [] x _ _ _
+pdif(wsum(a,b),vec(x)) wadd(pdif(a,vec(x)),pdif(b,vec(x))) [] x _ _ _
+pdif(vec(wsum(a,b)),vec(x)) wadd(pdif(vec(a),vec(x)),pdif(vec(b),vec(x))) [] x _ _ _
 transpose(transpose(a)) a [] x _ _ _
 vec(vec(a)) vec(a) [] x _ _ _
 pdif(vec(flatten(a)),vec(x)) pdif(vec(a),vec(x)) [] x _ _ _
 pdif(vec(x),vec(x)) identity(len(x)*len(index(x,0))) [] x _ _ _
 pdif(vec(transpose(a)),vec(x)) wmul(commutation(len(a),len(index(a,0))),pdif(vec(a),vec(x))) [] x _ _ _
-pdif(vec(hadamard(a,b)),vec(x)) wadd(wmul(diag(b),pdif(vec(a),vec(x))),wmul(diag(a),pdif(vec(b),vec(x)))) [] x _ _ _
+pdif(vec(hprod(a,b)),vec(x)) wadd(wmul(diag(b),pdif(vec(a),vec(x))),wmul(diag(a),pdif(vec(b),vec(x)))) [] x _ _ _
 pdif(vec(broadcast(a,r)),vec(x)) wmul(kronecker(identity(len(vec(a))),wadd(1,zeros(r,1))),pdif(vec(a),vec(x))) [] x _ _ _
 pdif(vec(sigmoid(a)),vec(x)) wmul(diag(vec(hadamard(sigmoid(a),wadd(1,hadamard(-1,sigmoid(a)))))),pdif(vec(a),vec(x))) [] x _ _ _
-pdif(vec(wmul(a,b)),vec(x)) wadd(wmul(kronecker(transpose(b),identity(len(a))),pdif(vec(a),vec(x))),wmul(kronecker(identity(len(index(b,0))),a),pdif(vec(b),vec(x)))) [] x _ _ _
-pdif(wmul(transpose(y),y),vec(x)) wmul(transpose(pdif(y,vec(x))),hadamard(2,y)) [] x _ _ _
+pdif(vec(mprod(a,b)),vec(x)) wadd(wmul(kronecker(transpose(b),identity(len(a))),pdif(vec(a),vec(x))),wmul(kronecker(identity(len(index(b,0))),a),pdif(vec(b),vec(x)))) [] x _ _ _
+@pdif(wmul(transpose(y),y),vec(x)) wmul(transpose(pdif(y,vec(x))),hadamard(2,y)) [] x _ _ _
 pdif(vec(conv(a,b)),vec(x)) wadd(wmul(im2col(a,b),pdif(vec(b),vec(x))),wmul(col2im(b,a),pdif(vec(a),vec(x)))) [] x _ _ _"""
 
-diff_matrix_matrix = lambda x: replace(formula_list_applier(replace(x, parse("m"), TreeNode("s_m")), matrix_vectorization_calculus_s), TreeNode("s_m"), parse("m"))
+diff_matrix_matrix_fx = formula_list_compiler(matrix_vectorization_calculus_s)
+diff_matrix_matrix = lambda x: replace(diff_matrix_matrix_fx(replace(x, parse("m"), TreeNode("s_m")),), TreeNode("s_m"), parse("m"))
 
 def zeros(*shape):
     if len(shape) == 0:

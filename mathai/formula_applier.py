@@ -705,6 +705,9 @@ def formula_list_applier(eq, s):
     return dowhile(eq, lambda x: formula_list_applier_h(x, s))
 
 
+def _is_zero(node):
+    return node is not None and (getattr(node, "name", None) == "d_0" or node == 0)
+
 def extract_polynomial_coefficients(eq, var, degree):
     if eq is None:
         return None
@@ -717,12 +720,14 @@ def extract_polynomial_coefficients(eq, var, degree):
         if c_val is None:
             return None
         coefficients.append(c_val)
-        simplified_num = simplify(operation("f_sub", [current_eq, c_val]))
-        if simplified_num == 0:
+        remainder = simplify(operation("f_sub", [current_eq, c_val]))
+        if remainder is None:
+            return None
+        if _is_zero(remainder):
             coefficients.extend(TreeNode("d_0") for _ in range(degree + 1 - len(coefficients)))
             return coefficients
-        current_eq = simplify(expand(simplify(operation("f_div", [simplified_num, var_node]))))
+        current_eq = simplify(expand(simplify(operation("f_div", [remainder, var_node]))))
         if current_eq is None:
             return None
     final_check = simplify(replace(copy.deepcopy(current_eq), var_node, zero_node))
-    return coefficients if final_check == 0 else None
+    return coefficients if _is_zero(final_check) else None

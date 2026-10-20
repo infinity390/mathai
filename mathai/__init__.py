@@ -9,6 +9,9 @@ from .graphics import draw_graphics_from_solution, solve_graphics, solve_graphic
 
 from .benchmark import benchmark_ncert
 
+from .formula_compiler import formula_compiler
+from .formula_compiler import formula_list_compiler
+
 from .lambda_calculus import lambda_expand, lambda_compress, lambda_reduce
 
 from .electronic import Edge, CircuitGraph, find_resistance

@@ -7,7 +7,7 @@ from .trig import trig0
 from .fraction import fraction, fraction0
 from .tool import poly
 from .printeq import print_raw
-from .formula_applier import formula_list_applier
+from .formula_compiler import formula_list_compiler
 
 def substitute_val(eq, val, var="v_0"):
     eq = replace(eq, tree_form(var), tree_form("d_"+str(val)))
@@ -166,7 +166,7 @@ limitpinf(x^c,x) 0 [] x _ _ _
 limitpinf(sum(a,b),x) limitpinf(a,x)+limitpinf(b,x) [] x _ _ _
 limitpinf(a,x) a [] x a _ _"""
 
-limit3 = lambda x: formula_list_applier(x, limit3_s)
+limit3 = formula_list_compiler(limit3_s)
 def solve_inf(eq):
     stack = [(eq, False)]
     result = {}

@@ -7,9 +7,9 @@ import math
 from .tool import poly
 from .fraction import fraction
 from collections import Counter
-from .formula_applier import formula_list_applier
+from .formula_compiler import formula_list_compiler
 
-factor2 = lambda x: formula_list_applier(x, "poly(x,a,b,c) a*(x-(-b+sqrt(b^2-4*a*c))/(2*a))*(x-(-b-sqrt(b^2-4*a*c))/(2*a)) [] _ _ b^2-4*a*c _")
+factor2 = formula_list_compiler("poly(x,a,b,c) a*(x-(-b+sqrt(b^2-4*a*c))/(2*a))*(x-(-b-sqrt(b^2-4*a*c))/(2*a)) [] _ _ b^2-4*a*c _")
 def multiset_intersection(*lists):
     counters = list(map(Counter, lists))
     common = counters[0]

@@ -8,7 +8,7 @@ from .fraction import fraction
 from .simplify import simplify
 from .expand import expand
 from .base import *
-from .formula_applier import formula_list_applier, formula_applier
+from .formula_compiler import formula_list_compiler, formula_compiler
 from .inverse import inverse
 from .tool import poly
 from fractions import Fraction
@@ -27,7 +27,7 @@ is_integrate_subs_s = """poly(x,a,b,c) true [] x [a,b,c] _ _
 a*x+b true [] x [a,b] _ _
 a false [] x a _ _"""
 
-is_integrate_subs = lambda x: formula_list_applier(x, is_integrate_subs_s)
+is_integrate_subs = formula_list_compiler(is_integrate_subs_s)
 
 def subs_heuristic(eq, var):
     output = []
@@ -85,10 +85,10 @@ def subs_heuristic(eq, var):
     else:
         p = [poly_term]+output
     last = list(set(last))
-    if len(p)>2:
-        p = p[:2]
-    elif len(p)<2:
-        p = (p+last)[:2]
+    if len(p)>3:
+        p = p[:3]
+    elif len(p)<3:
+        p = (p+last)[:3]
     return p
 try_index = []
 try_lst = []
@@ -172,6 +172,9 @@ def solve_integrate(eq):
     if eq2.name == "f_try":
         eq2.children = list(set(eq2.children))
     return eq2
+
+tmp_fx = formula_list_compiler("abs(x) x [] _ _ _ _")
+tmp_fx2 = formula_list_compiler("(a^b)^c a^(b*c) [] b c _ _")
 def integrate_subs(equation, term, v1, v2, extra):
     output = []
     orig = equation.copy_tree()
@@ -201,7 +204,7 @@ def integrate_subs(equation, term, v1, v2, extra):
             equation = simplify(equation)
             if v1 in str_form(equation):
                 equation = replace(equation, tree_form(v1), t)
-                equation = formula_applier(equation, "abs(x) x [] _ _ _ _")
+                equation = tmp_fx(equation)
     if v1 in str_form(equation):
         return none
     return dowhile(TreeNode("f_subs", [TreeNode("f_integrate", [simplify(equation), tree_form(origv2)]),tree_form(origv2) ,g]+extra), lambda x: simplify(trig4(trig0(x))))
@@ -270,13 +273,13 @@ integrate(1/poly(x,a,b,c),x) 1/(sqrt(a)*sqrt((4*a*c-b^2)/(4*a)))*arctan((sqrt(a)
 integrate(1/poly(x,a,b,c),x) -1/(sqrt(-a)*sqrt((b^2-4*a*c)/(-4*a)))*arctan((sqrt(-a)*x-b/(2*sqrt(-a)))/sqrt((b^2-4*a*c)/(-4*a))) [] x [a,b,c] _ [a,b^2-4*a*c] [[a,0],[4*a*c-b^2,0]]
 integrate(poly(x,p,q)/sqrt(poly(x,a,b,c)),x) (p/a)*sqrt(a*x^2+b*x+c)+(q-p*b/(2*a))*integrate(1/sqrt(a*x^2+b*x+c),x) [] x [p,q,a,b,c] _ _ _ [[a,0]]
 integrate(poly(x,p,q)/poly(x,a,b,c),x) (p/(2*a))*log(abs(a*x^2+b*x+c))+(q-p*b/(2*a))*integrate(1/(a*x^2+b*x+c),x) [] x [p,q,a,b,c] _ _ _ [[a,0]]"""
-integrate_fraction = lambda x: formula_list_applier(x, integrate_fraction_s)
+integrate_fraction = formula_list_compiler(integrate_fraction_s)
 
 def_integrate_formula_s = """integrate(abs(poly(x,a,b)),x,m,n) ((a*n+b)*abs(a*n+b)-(a*m+b)*abs(a*m+b))/(2*a) [] x [a,b] _ _
 integrate(abs(sin(x)),x) 2*floor(x/pi)+1-cos(x-pi*floor(x/pi)) [] x _ _ _
 integrate(u,x,a,inf) limitpinf(integrate(u,x),x)-limit(integrate(u,x),x,a) [] x a _ _ _
 integrate(u,x,a,b) limit(integrate(u,x),x,b)-limit(integrate(u,x),x,a) [] x [a,b] _ _ _"""
-def_integrate_formula = lambda x: formula_list_applier(x, def_integrate_formula_s)
+def_integrate_formula = formula_list_compiler(def_integrate_formula_s)
 
 integrate_formula_s = """
 integrate(x^2*e^(poly(x,a,b)),x) ((x^2/a)-(2*x/(a^2))+(2/(a^3)))*e^(a*x+b) [] x [a,b] _ _
@@ -297,10 +300,11 @@ integrate(x,x) x^2/2 [] x _ _ _
 integrate(a,x) a*x [] x a _ _
 integrate(product(a,b),x) a*integrate(b,x) [] x a _ _
 """
-integrate_formula = lambda x: formula_list_applier(x, integrate_formula_s)
+integrate_formula = formula_list_compiler(integrate_formula_s)
 
 integrate_trig_s = """integrate(cos(poly(x,a,b))/sin(poly(x,a,b)),x) log(abs(sin(a*x+b)))/a [] x [a,b] _ _
 integrate(sin(poly(x,a,b))/cos(poly(x,a,b)),x) -(log(abs(cos(a*x+b)))/a) [] x [a,b] _ _
+integrate(sin(x)/cos(x),x) -(log(abs(cos(x)))) [] x _ _ _ _
 integrate((sin(x)/cos(x))^a,x) tan(x)^(a-1)/(a-1)-integrate((sin(x)/cos(x))^(a-2),x) [] x a a _ [[a,1]]
 integrate((cos(x)/sin(x))^a,x) -(cot(x)^(a-1)/(a-1))-integrate((cos(x)/sin(x))^(a-2),x) [] x a a _ [[a,1]]
 integrate(cos(x)^a/sin(x),x) cos(x)^(a-1)/(a-1)+integrate(cos(x)^(a-2)/sin(x),x) [] x a a _ [[a,1]]
@@ -308,8 +312,10 @@ integrate(sin(x)^a/cos(x),x) -(sin(x)^(a-1)/(a-1))+integrate(sin(x)^(a-2)/cos(x)
 integrate(sin(x)^a*cos(x)^b,x) -(sin(x)^(a+1)*cos(x)^(b+1)/(b+1))+(a+b+2)/(b+1)*integrate(sin(x)^a*cos(x)^(b+2),x) [] x [a,b] _ b [[b,-1]]
 integrate(sin(x)^a*cos(x)^b,x) sin(x)^(a+1)*cos(x)^(b+1)/(a+1)+(a+b+2)/(a+1)*integrate(sin(x)^(a+2)*cos(x)^b,x) [] x [a,b] _ a [[a,-1]]
 integrate(sin(x)^a,x) sin(x)^(a+1)*cos(x)/(a+1)+(a+2)/(a+1)*integrate(sin(x)^(a+2),x) [] x a _ a [[a,-1]]
-integrate(cos(x)^a,x) -(sin(x)*cos(x)^(a+1)/(a+1))+(a+2)/(a+1)*integrate(cos(x)^(a+2),x) [] x a _ a [[a,-1]]"""
-integrate_trig_formula = lambda x: formula_list_applier(x, integrate_trig_s)
+integrate(cos(x)^a,x) -(sin(x)*cos(x)^(a+1)/(a+1))+(a+2)/(a+1)*integrate(cos(x)^(a+2),x) [] x a _ a [[a,-1]]
+integrate(cos(x)*sin(x)^a,x) sin(x)^(a+1)/(a+1) [] x a _ _ [[a,-1]]
+integrate(sin(x)*cos(x)^a,x) -(cos(x)^(a+1)/(a+1)) [] x a _ _ [[a,-1]]"""
+integrate_trig_formula = formula_list_compiler(integrate_trig_s)
 
 def normalize(x, f=True):
     x = simplify(x)
@@ -317,7 +323,7 @@ def normalize(x, f=True):
     if f:
         x = dowhile(x, lambda y: fraction(simplify(integrate_formula(y))))
     else:
-        x = integrate_formula(x)
+        x = dowhile(x, lambda y: integrate_trig_formula(integrate_formula(y)))
     out = integrate_fraction(x)
     if out is not None:
         x = out
@@ -330,15 +336,14 @@ def integrate_full(root, debug=True):
         return "f_integrate" not in str_form(x)
     result = None
     root = normalize(root)
-    root = formula_applier(root, "(a^b)^c a^(b*c) [] b c _ _")
+    root = tmp_fx2(root)
     normalize2 = lambda x: normalize(x, False)
     log = []
     orig = copy.deepcopy(root)
     eq = root
-    for item in [[lambda x: x, simplify, expand, normalize], [factor2, apart, normalize2, normalize], [trig1, normalize2],\
-                 [factor1, normalize, trig6, normalize, expand, normalize, integrate_subs_main, normalize, factor2, simplify, integrate_trig_formula, trig1, apart, normalize2],\
-                 [normalize2, integrate_subs_main, expand, normalize, factor2, simplify, apart, normalize, expand, byparts, normalize],\
-                 [simplify, integrate_trig_formula, trig1, integrate_formula]]:
+    for item in [[simplify, expand, normalize], [factor2, apart, normalize2, normalize], [trig1, normalize2],\
+                 [factor1, normalize, trig6, normalize, factor2, expand, simplify, apart, normalize2, trig1, normalize2],\
+                 [normalize, integrate_subs_main, normalize], [normalize2, byparts, normalize, byparts, normalize]]:
         for item2 in item:
             eq = item2(eq)
             if eq not in log:
