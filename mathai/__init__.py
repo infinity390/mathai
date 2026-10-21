@@ -20,7 +20,7 @@ from .linear import linear_solve
 
 from .test import test
 
-from .decision import god
+from .decision import god, god2
 
 from .expand import expand
 
