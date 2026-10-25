@@ -1,0 +1,22 @@
+(x+1)*(x-1)=x^2-1 expand simplify logic0
+1+1=2 logic0
+sin(x)^2+cos(x)^2=1 trig1 logic0
+(1/(1-4*i)-2/(1+i))*((3-4*i)/(5+i))
+limit((1-cos(x))/x,x) limit1
+4*x+3<6*x+7 simple_wavycurvy
+integrate(x/((x+1)*(x+2)),x) apart integrate_formula
+integrate(sin(2*x+5)^2,x) trig1 integrate_formula
+integrate((1-cos(x))/(1+cos(x)),x) trig6 expand integrate_formula integrate_trig_formula simplify integrate_trig_formula integrate_formula
+integrate(sin(x)/(1+cos(x)),x) trig6 expand integrate_formula simplify integrate_trig_formula
+integrate(cos(2*x),x) integrate_formula
+integrate(cosec(x)*(cosec(x)+cot(x)),x) trig0 fraction expand integrate_formula simplify integrate_trig_formula
+integrate((1-sin(x))/cos(x)^2,x) expand integrate_formula integrate_trig_formula
+integrate(x^2*(1-1/x^2),x) expand simplify integrate_formula
+integrate(sec(x)^2/cosec(x)^2,x) trig0 simplify integrate_trig_formula integrate_formula trig1
+integrate(sin(x)/sin(x+a),x) integrate_subs expand simplify integrate_formula integrate_trig_formula integrate_clean
+integrate((e^(2*x)-1)/(e^(2*x)+1),x) integrate_subs integrate_formula expand simplify apart integrate_formula integrate_clean
+integrate((e^(2*x)-e^(-2*x))/(e^(2*x)+e^(-2*x)),x) integrate_subs integrate_formula fraction simplify apart integrate_formula integrate_fraction integrate_clean
+integrate(tan(2*x-3)^2,x) trig0 integrate_trig_formula integrate_formula
+integrate((4*x+2)*sqrt(x^2+x+1),x) integrate_subs integrate_formula integrate_clean
+abs(3*x-5)+abs(8-x)=abs(3+2*x) absolute simplify simple_wavycurvy
+(sin(x)+cosec(x))^2+(cos(x)+sec(x))^2=7+tan(x)^2+cot(x)^2 trig0 fraction trig1 fraction simplify trig1 logic0

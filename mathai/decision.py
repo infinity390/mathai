@@ -15,7 +15,6 @@ from .factor import factor2, factor
 from .limit import limit1, limit5
 from .linear import linear_solve
 from .matrix import matrix_solve, matrix_formula
-from .benchmark import load_sequences, strategy_tree, execute_serial
 
 def vlist_2(eq):
     out = []
@@ -61,21 +60,6 @@ def solve_subs(q):
     if len(solution.keys()) == 0:
         return orig
     return operation("f_and", [item for item in lst if all(not contain(item, tree_form(key)) for key in solution.keys())] + [TreeNode("f_eq", [tree_form(key), item]) for key, item in solution.items()])
-def _no_integrate_left(eq):
-    return eq.name == "f_range" or eq.name == "s_true" or all(not contain2(eq, "f_"+item) for item in "eq integrate subs limit limitpinf limitninf".split(" "))
-
-
-def god2(string):
-    out = execute_serial(
-        strategy_tree(load_sequences("ncert_data")),
-        simplify(parse(string)),
-        _no_integrate_left,
-    )
-    if len(out) >= 1:
-        print(string)
-        print("=>", out[0][0])
-        print(["parse", "simplify"] + out[0][1])
-    return None
 
 def god(string, debug=True):
     if debug:

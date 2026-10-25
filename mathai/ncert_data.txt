@@ -1,5 +1,7 @@
-abs(3*x-5)+abs(8-x)=abs(3+2*x) absolute simplify simple_wavycurvy
-(sin(x)+cosec(x))^2+(cos(x)+sec(x))^2=7+tan(x)^2+cot(x)^2 trig0 fraction trig1 fraction simplify trig1 logic0
+(x+1)*(x-1)=x^2-1 expand simplify logic0
+(a+b)^2=a^2+b^2+2*a*b expand simplify logic0
+1+1=2 logic0
+sin(x)^2+cos(x)^2=1 trig1 simplify logic0
 (1/(1-4*i)-2/(1+i))*((3-4*i)/(5+i))
 limit((1-cos(x))/x,x) limit1
 limit(sin(4*x)/sin(2*x),x) limit1
@@ -62,3 +64,5 @@ integrate(log(x)^2/x,x) integrate_subs integrate_formula integrate_clean
 integrate(sin(arctan(x))/(1+x^2),x) integrate_subs integrate_formula integrate_clean
 integrate(2*x*sin(x^2+1),x) integrate_formula integrate_subs integrate_formula integrate_clean
 integrate(sin(m*x),x) integrate_formula
+abs(3*x-5)+abs(8-x)=abs(3+2*x) absolute simplify simple_wavycurvy
+(sin(x)+cosec(x))^2+(cos(x)+sec(x))^2=7+tan(x)^2+cot(x)^2 trig0 fraction trig1 fraction simplify trig1 logic0

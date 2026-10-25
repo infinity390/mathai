@@ -9,7 +9,7 @@ from .graphics import draw_graphics_from_solution, solve_graphics, solve_graphic
 
 from .square_root import solve_sqrt
 
-from .benchmark import benchmark
+from .benchmark import benchmark, god2, benchmark_test
 
 from .formula_compiler import formula_compiler
 from .formula_compiler import formula_list_compiler
@@ -22,7 +22,7 @@ from .linear import linear_solve
 
 from .test import test
 
-from .decision import god, god2
+from .decision import god
 
 from .expand import expand
 

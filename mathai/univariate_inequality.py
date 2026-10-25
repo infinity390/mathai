@@ -607,6 +607,7 @@ def simple_wavycurvy(eq, mode=False):
     eq = factor2(eq)
     eq = simplify(eq, True, True)
     eq = wavycurvy(eq, mode)
+    eq = solve_sqrt(eq)
     if eq.name == "f_range":
         tmp = eq2range(eq).truth()
         if tmp == 1:
