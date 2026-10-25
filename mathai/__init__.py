@@ -7,6 +7,8 @@ from .qm import hydrogen_gse, helium_gse, power_rule
 
 from .graphics import draw_graphics_from_solution, solve_graphics, solve_graphics_string
 
+from .square_root import solve_sqrt
+
 from .benchmark import benchmark
 
 from .formula_compiler import formula_compiler

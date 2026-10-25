@@ -589,18 +589,24 @@ top_view_length : 80
 line_length : 80
 ```
 
-#### Example Demonstration 13 (formula applier)
+#### Example Demonstration 13 (formula compiler/applier)
 ```python
 from mathai import *
 formula = "a*x^2+b*x+c a*(x-(-b+sqrt(b^2-4*a*c))/(2*a))*(x-(-b-sqrt(b^2-4*a*c))/(2*a))"
 formula += " [[a,1],[b,0],[b,1]] _ _ _ _"
 question = simplify(parse("sin(x)^2-4*sin(x)+4"))
-print(formula_applier(question, formula))
+print(formula_list_compiler(formula)(question))
+
+formula = "sin(x)^2+cos(x)^2 1"
+formula += " [] _ _ _ _"
+question = simplify(parse("sin(pi/3)^2+cos(pi/3)^2+1"))
+print(formula_list_compiler(formula)(question))
 ```
 
 #### Output
 ```
 (-2+sin(x))^2
+2
 ```
 
 ### Questions solved using god() function

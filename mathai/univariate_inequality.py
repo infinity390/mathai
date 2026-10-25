@@ -10,6 +10,7 @@ import copy
 from .diff import diff
 from .logic import logic0
 from .tool import poly, poly_simplify
+from .square_root import solve_sqrt
 
 def intersection2(domain, lst):
     domain = copy.deepcopy(domain)
