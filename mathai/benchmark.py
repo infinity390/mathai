@@ -200,7 +200,7 @@ def execute_parallel(tree, equation, terminal_condition=None):
 
 
 def god2(string, parallel=False):
-    tree = strategy_tree(load_sequences("ncert_data"))
+    tree = strategy_tree(load_sequences("ncert_data_optimized"))
     if parallel:
         out = execute_parallel(tree, simplify(parse(string)), _no_integrate_left)
     else:
