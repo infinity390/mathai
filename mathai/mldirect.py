@@ -958,8 +958,7 @@ class NeuralNetworkDirect:
         for s in range(n_starts):
             x0 = rng.normal(0.0, init_scale, N)
             x, iters, ok = self._newton(x0, X, Y, grad_tol, max_iter)
-            if s % n_starts//10 == 0:
-                print(f"newton start {s+1}/{n_starts}: {'converged' if ok else 'failed'} after {iters} iterations")
+            print(f"newton start {s+1}/{n_starts}: {'converged' if ok else 'failed'} after {iters} iterations")
             if not ok:
                 continue
             if any(np.linalg.norm(x - p) <= dedup_tol * (1.0 + np.linalg.norm(p)) for p in found):
