@@ -6,7 +6,7 @@ from .simplify import simplify
 from .fraction import fraction
 from .expand import expand
 from .base import *
-from .factor import factorconst
+
 from .tool import poly
 
 def ss(eq):

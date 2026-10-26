@@ -7,7 +7,6 @@ from .base import *
 from .expand import expand
 from .parser import parse
 from .fraction import fraction
-from .factor import rationalize_sqrt
 from .inverse import inverse
 from .formula_compiler import formula_list_compiler
 from .univariate_inequality import simple_wavycurvy, eq2range, Range, range2eq2

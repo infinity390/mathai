@@ -4,6 +4,7 @@ from .ode import diffsolve as ode_solve
 from .integrate import integrate_formula
 from .simplify import simplify
 from .formula_applier import formula_applier
+from .formula_compiler import formula_list_compiler
 
 pde_character_s = """a*pdif(u,x)+b*pdif(u,y)+c=0 list(dif(x,y)=a/b,dif(u,x)=-c/a,dif(u,y)=-c/b,u) [[c,0],[a,1],[b,1]] [u,x,y] _ _ _"""
 pde_character = lambda x: formula_applier(x, pde_character_s)

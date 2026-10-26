@@ -28,6 +28,7 @@ from .expand import expand
 
 from .ml import NeuralNetwork, diff_matrix_matrix
 from .mlscalar import NeuralNetworkScalar
+from .mldirect import NeuralNetworkDirect
 
 from .parser import parse, remove_extra_brackets
 
@@ -44,11 +45,7 @@ from .integrate import normalize as integration_basic
 
 from .diff import diff, diff2
 
-from .factor import factor as factor1
-from .factor import factor2, take_common
-from .factor import rationalize_sqrt as rationalize
-from .factor import merge_sqrt
-from .factor import factorconst as factor0
+from .factor import factor0, factor1, factor2
 
 from .fraction import fraction, fraction0
 

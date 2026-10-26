@@ -1,5 +1,4 @@
 from .base import *
-from .factor import merge_sqrt
 from .simplify import simplify
 import copy
 from fractions import Fraction

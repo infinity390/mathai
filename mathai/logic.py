@@ -4,7 +4,7 @@ from .base import *
 from .fraction import fraction
 from .simplify import simplify
 from .expand import expand
-from .factor import factorconst
+
 def set_sub(eq):
   if eq.name == "f_sub":
     return eq.children[0] & eq.children[1].fx("not")

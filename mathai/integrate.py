@@ -1,6 +1,4 @@
-from .factor import factor2
-from .factor import factorconst as factor0
-from .factor import factor as factor1
+from .factor import factor2, factor1, factor0
 from .parser import parse
 import itertools
 from .diff import diff
@@ -289,14 +287,14 @@ def byparts(eq):
             return TreeNode("f_try", output)
         eq = eq2
     return TreeNode(eq.name, [byparts(child) for child in eq.children])
-
 integrate_fraction_s = """integrate(1/sqrt(poly(x,a,b,c)),x) 1/sqrt(a)*log(abs(sqrt(a)*x+b/(2*sqrt(a))+sqrt((sqrt(a)*x+b/(2*sqrt(a)))^2+(4*a*c-b^2)/(4*a)))) [] x [a,b,c] [a,4*a*c-b^2] _ [[a,0],[b^2-4*a*c,0]]
 integrate(1/sqrt(poly(x,a,b,c)),x) 1/sqrt(a)*log(abs(sqrt(a)*x+b/(2*sqrt(a))+sqrt((sqrt(a)*x+b/(2*sqrt(a)))^2-(b^2-4*a*c)/(4*a)))) [] x [a,b,c] [a,b^2-4*a*c] _ [[a,0],[4*a*c-b^2,0]]
 integrate(1/sqrt(poly(x,a,b,c)),x) 1/sqrt(-a)*arcsin((sqrt(-a)*x-b/(2*sqrt(-a)))/sqrt((4*a*c-b^2)/(4*a))) [] x [a,b,c] [4*a*c-b^2] a [[a,0],[b^2-4*a*c,0]]
 integrate(1/poly(x,a,b,c),x) 1/(sqrt(a)*sqrt((4*a*c-b^2)/(4*a)))*arctan((sqrt(a)*x+b/(2*sqrt(a)))/sqrt((4*a*c-b^2)/(4*a))) [] x [a,b,c] [a,4*a*c-b^2] _ [[a,0],[b^2-4*a*c,0]]
-integrate(1/poly(x,a,b,c),x) -1/(sqrt(-a)*sqrt((b^2-4*a*c)/(-4*a)))*arctan((sqrt(-a)*x-b/(2*sqrt(-a)))/sqrt((b^2-4*a*c)/(-4*a))) [] x [a,b,c] _ [a,b^2-4*a*c] [[a,0],[4*a*c-b^2,0]]
+integrate(1/poly(x,a,b,c),x) -1/(sqrt(-a)*sqrt((4*a*c-b^2)/(-4*a)))*arctan((sqrt(-a)*x-b/(2*sqrt(-a)))/sqrt((4*a*c-b^2)/(-4*a))) [] x [a,b,c] [4*a*c-b^2] a [[a,0],[b^2-4*a*c,0]]
 integrate(poly(x,p,q)/sqrt(poly(x,a,b,c)),x) (p/a)*sqrt(a*x^2+b*x+c)+(q-p*b/(2*a))*integrate(1/sqrt(a*x^2+b*x+c),x) [] x [p,q,a,b,c] _ _ _ [[a,0]]
 integrate(poly(x,p,q)/poly(x,a,b,c),x) (p/(2*a))*log(abs(a*x^2+b*x+c))+(q-p*b/(2*a))*integrate(1/(a*x^2+b*x+c),x) [] x [p,q,a,b,c] _ _ _ [[a,0]]"""
+
 integrate_fraction = formula_list_compiler(integrate_fraction_s)
 
 def_integrate_formula_s = """integrate(abs(poly(x,a,b)),x,m,n) ((a*n+b)*abs(a*n+b)-(a*m+b)*abs(a*m+b))/(2*a) [] x [a,b] _ _

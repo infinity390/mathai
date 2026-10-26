@@ -675,7 +675,7 @@ class NeuralNetwork:
                 A_list = A_list + flatten_list(item)
             exec(s, env2)
             return env2["fx"](A_list,flatten_list(given_x))
-    def train(self, train_x, train_y, learning_rate, epoch, batch_size=1):
+    def train(self, train_x, train_y, learning_rate=12, epoch=10000, batch_size=1):
         global hadamard, zeros, transpose, matadd, sigmoid, identity, power, vec, diag, flatten,\
                matmul, reshape, kronecker, commutation, broadcast, im2col, conv, col2im
         print("gradients calculated")

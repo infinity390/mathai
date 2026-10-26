@@ -11,7 +11,7 @@ from .univariate_inequality import simple_wavycurvy, wavycurvy, prepare, absolut
 from .fraction import fraction
 from .expand import expand
 from .logic import logic0, set_sub, truth_gen, solve_logically
-from .factor import factor2, factor
+from .factor import factor2, factor1, factor0
 from .limit import limit1, limit5
 from .linear import linear_solve
 from .matrix import matrix_solve, matrix_formula
