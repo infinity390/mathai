@@ -28,7 +28,6 @@ from .expand import expand
 
 from .ml import NeuralNetwork, diff_matrix_matrix
 from .mlscalar import NeuralNetworkScalar
-from .mldirect import NeuralNetworkDirect
 
 from .parser import parse, remove_extra_brackets
 
